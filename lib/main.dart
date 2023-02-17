@@ -4,6 +4,8 @@ import 'package:ble_larus_android/ble_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' show Platform;
 import 'dart:async';
+import 'dart:typed_data';
+
 
 
 
@@ -56,24 +58,11 @@ class MyHomePage extends StatefulWidget {
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
-/*
-  @override
-  void initState() {
-    super.initState();
-    final flutterReactiveBle = FlutterReactiveBle();
-    flutterReactiveBle.scanForDevices(withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
-      print(device);    
-      //code for handling results
-    }, onError: () {
-      //code for handling error
-    });
-  }*/
   
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  String _displayText = "Hello World";
+  String _displayText = "";
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
@@ -123,25 +112,9 @@ class _MyHomePageState extends State<MyHomePage> {
             _foundDeviceWaitingToConnect = true;
             
           });
-          /*
-          flutterReactiveBle.discoverServices(device.id).then((discoveredServices) => {
-              print("discovered services"),
-              for (var service in discoveredServices) {
-                print(service.characteristicIds),
-                for (var characteristic in service.characteristics) {
-                  print('characteristic id $characteristic.characteristicId')
-                }
-              }
-            }
-          );
-          */
+          Future.delayed(const Duration(seconds: 1), () => _connectToDevice());
         }
       });
-    }
-  }
-
-  void _partyTime() {
-    if (_connected) {
     }
   }
 
@@ -159,6 +132,7 @@ class _MyHomePageState extends State<MyHomePage> {
         // We're connected and good to go!
         case DeviceConnectionState.connected:
           {
+            print("connected");
             _rxCharacteristic = QualifiedCharacteristic(
                 serviceId: serviceUuid,
                 characteristicId: characteristicUuid,
@@ -171,8 +145,15 @@ class _MyHomePageState extends State<MyHomePage> {
             
             final characteristic = QualifiedCharacteristic(serviceId: serviceUuid, characteristicId: characteristicUuid, deviceId: event.deviceId);
             flutterReactiveBle.subscribeToCharacteristic(characteristic).listen((data) {
+              if (data.length > 3){
+                final bytes = Uint8List.fromList(data);
+                final byteData = ByteData.sublistView(bytes);
+                double value = byteData.getFloat32(0,Endian.little);
+                print(value);
+              }
               setState(() {
                 _displayText = String.fromCharCodes(data);
+
               });
             }, onError: (dynamic error) {
               print("error: $error");
@@ -182,112 +163,61 @@ class _MyHomePageState extends State<MyHomePage> {
         // Can add various state state updates on disconnect
         case DeviceConnectionState.disconnected:
           {
+            if(_connected){
+              print("disconnected");
+              setState(() {
+                _connected = false;    
+              });
+              _startScan();
+            }
             break;
           }
         default:
       }
     });
-}
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    
+    if(!_scanStarted) {
+      _startScan();
+    }
+    String message = "Not connected";
+    if (_scanStarted) {
+      message = "Scanning...";
+    } 
+    if (_foundDeviceWaitingToConnect) {
+      message = "Found device, connecting...";
+    }
+    if (_connected) {
+      message = "Connected!";
+    }
+    if (_displayText != "") {
+      message = _displayText;
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
       ),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: <Widget>[          
             Text(
-              '$_counter',
+              '$message',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            Text(
-              '$_displayText',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const Icon(
+              Icons.arrow_upward,
+              color: Colors.blue,
+              size: 24.0,
+              semanticLabel: 'Wind direction',
             ),
 
           ],
           
         ),
         
-      ),
-      persistentFooterButtons: [
-        // We want to enable this button if the scan has NOT started
-        // If the scan HAS started, it should be disabled.
-        _scanStarted
-            // True condition
-            ? ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.grey, // background
-                  onPrimary: Colors.white, // foreground
-                ),
-                onPressed: () {},
-                child: const Icon(Icons.search),
-              )
-            // False condition
-            : ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.blue, // background
-                  onPrimary: Colors.white, // foreground
-                ),
-                onPressed: _startScan,
-                child: const Icon(Icons.search),
-              ),
-        _foundDeviceWaitingToConnect
-            // True condition
-            ? ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.blue, // background
-                  onPrimary: Colors.white, // foreground
-                ),
-                onPressed: _connectToDevice,
-                child: const Icon(Icons.bluetooth),
-              )
-            // False condition
-            : ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.grey, // background
-                  onPrimary: Colors.white, // foreground
-                ),
-                onPressed: () {},
-                child: const Icon(Icons.bluetooth),
-              ),
-        _connected
-            // True condition
-            ? ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.blue, // background
-                  onPrimary: Colors.white, // foreground
-                ),
-                onPressed: _partyTime,
-                child: const Icon(Icons.celebration_rounded),
-              )
-            // False condition
-            : ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.grey, // background
-                  onPrimary: Colors.white, // foreground
-                ),
-                onPressed: () {},
-                child: const Icon(Icons.celebration_rounded),
-              ),
-      ],
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
