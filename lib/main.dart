@@ -62,7 +62,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String _displayText = "";
+  var _displayText = ["", "", "", ""];
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
@@ -145,19 +145,39 @@ class _MyHomePageState extends State<MyHomePage> {
             
             final characteristic = QualifiedCharacteristic(serviceId: serviceUuid, characteristicId: characteristicUuid, deviceId: event.deviceId);
             flutterReactiveBle.subscribeToCharacteristic(characteristic).listen((data) {
-              if (data.length > 3){
-                final bytes = Uint8List.fromList(data);
-                final byteData = ByteData.sublistView(bytes);
-                double value = byteData.getFloat32(0,Endian.little);
-                print(value);
-              }
-              setState(() {
-                _displayText = String.fromCharCodes(data);
+              String values_string = "";
+              final bytes = Uint8List.fromList(data);
+              final byteData = ByteData.sublistView(bytes);
+              //print(byteData.lengthInBytes.toString() + " bytes");
+              for (int i = 0; i < byteData.lengthInBytes - 4; i += 4) {
+                //print(i.toString() + " bytes s" + (byteData.lengthInBytes + 4).toString());
+                double value = byteData.getFloat32(i, Endian.little);
+                
+                values_string += value.toString() + " ";
 
-              });
+              }
+              int display_number = data[data.length - 1];
+              
+              //print('$values_string num $display_number');
+              if(display_number >= 0 && display_number < 4){
+                setState(() {
+                  _displayText[display_number] = values_string;
+
+                });
+              }
             }, onError: (dynamic error) {
               print("error: $error");
+              setState(() {
+              _foundDeviceWaitingToConnect = false;
+              _connected = false;
+              _startScan();
             });
+            }, onDone: () {
+              print("done");
+              _foundDeviceWaitingToConnect = false;
+              _connected = false;
+              _startScan();
+            }, cancelOnError: true);
             break;
           }
         // Can add various state state updates on disconnect
@@ -192,8 +212,8 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_connected) {
       message = "Connected!";
     }
-    if (_displayText != "") {
-      message = _displayText;
+    if (_displayText[0] != "") {
+      message = _displayText[0];
     }
     return Scaffold(
       appBar: AppBar(
@@ -205,6 +225,18 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[          
             Text(
               '$message',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            Text(
+              '${_displayText[1]}',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            Text(
+              '${_displayText[2]}',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            Text(
+              '${_displayText[3]}',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const Icon(
