@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:ble_larus_android/ble_scanner.dart';
@@ -63,6 +65,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
+  double vario = 0;
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
@@ -149,14 +152,17 @@ class _MyHomePageState extends State<MyHomePage> {
               final bytes = Uint8List.fromList(data);
               final byteData = ByteData.sublistView(bytes);
               //print(byteData.lengthInBytes.toString() + " bytes");
+              int display_number = data[data.length - 1];
               for (int i = 0; i < byteData.lengthInBytes - 4; i += 4) {
                 //print(i.toString() + " bytes s" + (byteData.lengthInBytes + 4).toString());
                 double value = byteData.getFloat32(i, Endian.little);
-                
+                if (display_number == 0 && i == 0){
+                  
+                  vario = value;
+                }
                 values_string += value.toString() + " ";
 
               }
-              int display_number = data[data.length - 1];
               
               //print('$values_string num $display_number');
               if(display_number >= 0 && display_number < 4){
@@ -186,7 +192,8 @@ class _MyHomePageState extends State<MyHomePage> {
             if(_connected){
               print("disconnected");
               setState(() {
-                _connected = false;    
+                _connected = false;
+                _displayText = ["", "", "", ""];  
               });
               _startScan();
             }
@@ -239,12 +246,7 @@ class _MyHomePageState extends State<MyHomePage> {
               '${_displayText[3]}',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const Icon(
-              Icons.arrow_upward,
-              color: Colors.blue,
-              size: 24.0,
-              semanticLabel: 'Wind direction',
-            ),
+            Transform(transform: Matrix4.rotationZ(vario / 10 * 0.5 * pi + 1.5*pi), origin: Offset(40, 40), child: Icon(Icons.arrow_upward, color: Colors.green, size: 80.0, semanticLabel: 'Wind direction',)),
 
           ],
           
