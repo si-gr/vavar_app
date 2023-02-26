@@ -1,15 +1,14 @@
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
-import 'package:ble_larus_android/ble_scanner.dart';
+import 'package:ble_larus_android/datahandler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' show Platform;
 import 'dart:async';
-import 'dart:typed_data';
-
-
-
+import 'package:sound_generator/sound_generator.dart';
+import 'package:sound_generator/waveTypes.dart';
 
 
 void main() {
@@ -65,7 +64,20 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
-  double vario = 0;
+  VarioData varioData = VarioData();
+  int buttonPressed = 0;
+  final double scalingFactor = 400;
+  final double zeroFrequency = 400;
+  final int sampleRate = 20000;
+  double varioVolume = 0.5;
+  bool isPlaying = false;
+
+  double currentVario = 0;
+  double oldVario = 0;
+  final oldVarioQueue = ListQueue<double>();
+  double numCurrentVarioValues = 50;
+  double num_old_vario_values = 50;
+  double opacity_correction_value = 0.9;
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
@@ -80,6 +92,27 @@ class _MyHomePageState extends State<MyHomePage> {
   final Uuid serviceUuid = Uuid.parse("0000abf0-0000-1000-8000-00805f9b34fb");
   final Uuid characteristicUuid = Uuid.parse("0000abf2-0000-1000-8000-00805f9b34fb");
   
+  @override
+  void initState() {
+    super.initState();
+
+    SoundGenerator.init(sampleRate);
+
+    SoundGenerator.onIsPlayingChanged.listen((value) {
+      setState(() {
+        isPlaying = value;
+      });
+    });
+
+    SoundGenerator.setAutoUpdateOneCycleSample(true);
+    //Force update for one time
+    SoundGenerator.refreshOneCycleData();
+
+    SoundGenerator.setWaveType(waveTypes.SINUSOIDAL);
+    
+    regulateVariometer();
+  }
+
   void _startScan() async {
 // Platform permissions handling stuff
     bool permGranted = false;
@@ -121,6 +154,32 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> regulateVariometer() async {
+    bool varioOn = false;
+    double cycleTimeOn = 1000;
+    double cycleTimeOff = 1000;
+    int lastTime = DateTime.now().millisecondsSinceEpoch;
+    while(true){
+      await Future.delayed(const Duration(milliseconds: 10),);
+
+      cycleTimeOn = min(max(1000 - (log((currentVario.abs() * 15) + 1)) * 200 * (currentVario > 0 ? 1 : -1), 50), 1200);
+      cycleTimeOff = cycleTimeOn;
+      // start cycle
+      if (varioOn == false && DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOff){
+        lastTime = DateTime.now().millisecondsSinceEpoch;
+        varioOn = true;
+        SoundGenerator.setVolume(varioVolume);
+      }
+      if (varioOn == true && DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOn && currentVario > 0) {
+        lastTime = DateTime.now().millisecondsSinceEpoch;
+        varioOn = false;
+        SoundGenerator.setVolume(0);
+      }
+      SoundGenerator.setFrequency(zeroFrequency + currentVario * 50);
+    }
+  }
+  
+
   void _connectToDevice() {
     // We're done scanning, we can cancel it
     _scanStream.cancel();
@@ -148,29 +207,29 @@ class _MyHomePageState extends State<MyHomePage> {
             
             final characteristic = QualifiedCharacteristic(serviceId: serviceUuid, characteristicId: characteristicUuid, deviceId: event.deviceId);
             flutterReactiveBle.subscribeToCharacteristic(characteristic).listen((data) {
-              String values_string = "";
-              final bytes = Uint8List.fromList(data);
-              final byteData = ByteData.sublistView(bytes);
-              //print(byteData.lengthInBytes.toString() + " bytes");
-              int display_number = data[data.length - 1];
-              for (int i = 0; i < byteData.lengthInBytes - 4; i += 4) {
-                //print(i.toString() + " bytes s" + (byteData.lengthInBytes + 4).toString());
-                double value = byteData.getFloat32(i, Endian.little);
-                if (display_number == 0 && i == 0){
-                  
-                  vario = value;
+              //print(DateTime.now().millisecondsSinceEpoch);
+              varioData.parse_ble_data(data);
+              currentVario = varioData.airspeed;
+
+              setState(() {
+                if (buttonPressed == 0) {
+                    _displayText = ["lat ${varioData.latitude.toString()}", "lon ${varioData.longitude.toString()}", "alt ${varioData.height_gps.toString()}", ""];
+                } else if (buttonPressed == 1){
+                    _displayText = ["spd ${((varioData.airspeed)*3.6).toString().substring(0, 3)}", varioData.airspeed_vector_x.toString(), varioData.airspeed_vector_y.toString(), varioData.airspeed_vector_z.toString()];
+                } else if (buttonPressed == 2) {
+                    _displayText = ["awx ${varioData.wind_vector_x.toString()}", "awy ${varioData.wind_vector_y.toString()}", "awz ${varioData.wind_vector_z.toString()}", ""];
+                } else if (buttonPressed == 3) {
+                    _displayText = ["tot ${varioData.prev_raw_total_energy.toString()}", "simp ${varioData.prev_simple_total_energy.toString()}", "climb ${varioData.raw_climb_rate.toString()}", "rd ${varioData.reading.toString()}"];
+                } else if (buttonPressed == 4) {
+                    _displayText = ["gx ${(varioData.gps_vector_x).toString()}", "gy ${(varioData.gps_vector_y).toString()}", "gz ${(varioData.gps_vector_z).toString()}", "gps speed"];
+                } else if (buttonPressed == 5) {
+                    _displayText = ["xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toString()}", "xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toString()}", "xwz ${(varioData.xcsoarEkf.getWind()[2]).toString()}", "xcsoar wind"];
+                } else if (buttonPressed == 6) {
+                    _displayText = ["lwx ${(varioData.larusWindX).toString()}", "lwy ${(varioData.larusWindY).toString()}", "larus wind", ""];
+                } else if (buttonPressed == 7) {
+                    _displayText = ["vx ${(varioData.velned_vector_x).toString()}", "vy ${(varioData.velned_vector_y).toString()}", "vz ${(varioData.velned_vector_z).toString()}", "velned speed"];
                 }
-                values_string += value.toString() + " ";
-
-              }
-              
-              //print('$values_string num $display_number');
-              if(display_number >= 0 && display_number < 4){
-                setState(() {
-                  _displayText[display_number] = values_string;
-
-                });
-              }
+              });
             }, onError: (dynamic error) {
               print("error: $error");
               setState(() {
@@ -222,6 +281,22 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_displayText[0] != "") {
       message = _displayText[0];
     }
+    
+    final old_vario_widgets = ListQueue<Widget>();
+    int opacity_int = 255;
+    int vario_counter = 0;
+    /*for (var vario_value in oldVarioQueue){
+      if (vario_counter < numCurrentVarioValues){
+        opacity_int = (255 * pow(opacity_correction_value, vario_counter)).round();
+        old_vario_widgets.addFirst(Transform(transform: Matrix4.rotationZ(vario_value / 10 * 0.5 * pi + 1.5*pi), origin: Offset(100, 100), child: Icon(Icons.arrow_upward, color: Color.fromARGB(opacity_int, 0, 255, 0), size: 200.0, semanticLabel: 'Vario',)));
+        
+      } else if (vario_counter < num_old_vario_values){
+        opacity_int = (255 * pow(opacity_correction_value, vario_counter - numCurrentVarioValues)).round();
+        old_vario_widgets.addFirst(Transform(transform: Matrix4.rotationZ(vario_value / 10 * 0.5 * pi + 1.5*pi), origin: Offset(110, 110), child: Icon(Icons.arrow_upward, color: Color.fromARGB(opacity_int, 0, 0, 255), size: 220.0, semanticLabel: 'Vario',)));
+      }
+      vario_counter++;
+    }
+    */
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -246,7 +321,124 @@ class _MyHomePageState extends State<MyHomePage> {
               '${_displayText[3]}',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            Transform(transform: Matrix4.rotationZ(vario / 10 * 0.5 * pi + 1.5*pi), origin: Offset(40, 40), child: Icon(Icons.arrow_upward, color: Colors.green, size: 80.0, semanticLabel: 'Wind direction',)),
+            //Stack(children: old_vario_widgets.toList(growable: false),),
+            Stack(children: [Image(image: AssetImage("assets/vario_background.png"), width: scalingFactor, height: scalingFactor,),
+            //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
+            //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
+            Transform(transform: Matrix4.rotationZ((((currentVario.isFinite ? currentVario : 0.0) * 20) / 360) * (2 * pi)), alignment: FractionalOffset.center, child: Image(image: const AssetImage("assets/vario_current.png"), width: scalingFactor, height: scalingFactor,)),
+            Transform(transform: Matrix4.rotationZ((((currentVario.isFinite ? currentVario : 0.0) * 20) / 360) * (2 * pi)), alignment: FractionalOffset.center, child: Image(image: const AssetImage("assets/vario_average1.png"), width: scalingFactor, height: scalingFactor,)),
+            Transform(transform: Matrix4.rotationZ((((currentVario.isFinite ? currentVario : 0.0) * 20) / 360) * (2 * pi)), alignment: FractionalOffset.center, child:
+              SizedBox(width: scalingFactor, height: scalingFactor, child: Icon(Icons.keyboard_backspace_rounded, color: Color.fromARGB(255, 162, 223, 255), size: scalingFactor * 0.6,))),
+            
+            ]),
+            
+            Slider(value: numCurrentVarioValues, max: 300, onChanged: (double value) {
+              setState(() {
+                numCurrentVarioValues = value;
+                varioVolume = value / 300;
+              });
+            },),
+            Slider(value: num_old_vario_values, max: 300, onChanged: (double value) {
+              setState(() {
+                num_old_vario_values = value;
+                oldVario = value / 15 - 5;
+                currentVario = value / 30 - 5;
+              });
+            },),
+            Slider(value: opacity_correction_value, max: 1, onChanged: (double value) {
+              setState(() {
+                opacity_correction_value = value;
+              });
+            },),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 0;
+                  });
+                }, icon: const Icon(
+                  Icons.location_on,
+                  color: Colors.green,
+                  size: 40.0,
+                )),
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 1;
+                  });
+                }, icon: const Icon(
+                  Icons.speed,
+                  color: Colors.red,
+                  size: 40.0,
+                )),
+                
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 3;
+                    
+                    SoundGenerator.play();
+                  });
+                }, icon: const Icon(
+                  Icons.cloud_upload,
+                  color: Colors.blue,
+                  size: 40.0,
+                )),
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 4;
+                  });
+                }, icon: const Icon(
+                  Icons.subway_rounded,
+                  color: Colors.brown,
+                  size: 40.0,
+                )),
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 7;
+                  });
+                }, icon: const Icon(
+                  Icons.computer,
+                  color: Colors.brown,
+                  size: 40.0,
+                )),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [                
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 5;
+                  });
+                }, icon: const Icon(
+                  Icons.airplane_ticket,
+                  color: Colors.yellow,
+                  size: 40.0,
+                )),
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 2;
+                    
+                    SoundGenerator.stop();
+                  });
+                }, icon: const Icon(
+                  Icons.airplanemode_active_outlined,
+                  color: Colors.yellow,
+                  size: 40.0,
+                )),
+                IconButton(onPressed: (){
+                  setState(() {
+                    buttonPressed = 6;
+                    
+                    SoundGenerator.stop();
+                  });
+                }, icon: const Icon(
+                  Icons.connecting_airports_rounded,
+                  color: Colors.yellow,
+                  size: 40.0,
+                )),
+              ],
+            )
 
           ],
           
