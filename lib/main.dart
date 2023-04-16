@@ -5,27 +5,27 @@ import 'package:ble_larus_android/xcsoar_windekf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:ble_larus_android/datahandler.dart';
+import 'package:ble_larus_android/datarestream.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' show Platform;
 import 'dart:async';
 import 'package:sound_generator/sound_generator.dart';
 import 'package:sound_generator/waveTypes.dart';
 import 'package:vector_math/vector_math.dart' hide Colors, Matrix4;
-
+import 'dart:io';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 void main() {
-    runApp(const MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  
   const MyApp({super.key});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    
-  
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -61,7 +61,6 @@ class MyHomePage extends StatefulWidget {
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
-  
 }
 
 class _MyHomePageState extends State<MyHomePage> {
@@ -71,12 +70,16 @@ class _MyHomePageState extends State<MyHomePage> {
   final double scalingFactor = 400;
   final double zeroFrequency = 400;
   final int sampleRate = 20000;
-  int circleDetectionMinTime = 5000;  // minimum time for turn is detected as circle in ms
+  int circleDetectionMinTime =
+      5000; // minimum time for turn is detected as circle in ms
   double varioVolume = 0.5;
   bool isPlaying = false;
   bool colorSwitchVario = false;
   Color varioColor = Colors.white;
-  final List<Color> warningColors = [const Color.fromARGB(255, 255, 145, 137), const Color.fromARGB(255, 255, 217, 50)];
+  final List<Color> warningColors = [
+    const Color.fromARGB(255, 255, 145, 137),
+    const Color.fromARGB(255, 255, 217, 50)
+  ];
   int warningColorIndex = 0;
   final List<String> warningStrings = ["Flachkurbler", "Latenz"];
   String currentWarningString = "";
@@ -97,14 +100,17 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _connected = false;
 // Bluetooth related variables
   late DiscoveredDevice _ubiqueDevice;
+  
+  late DataRestream dataRestream;
   final flutterReactiveBle = FlutterReactiveBle();
 
   late StreamSubscription<DiscoveredDevice> _scanStream;
   late QualifiedCharacteristic _rxCharacteristic;
 // These are the UUIDs of your device
   final Uuid serviceUuid = Uuid.parse("0000abf0-0000-1000-8000-00805f9b34fb");
-  final Uuid characteristicUuid = Uuid.parse("0000abf2-0000-1000-8000-00805f9b34fb");
-  
+  final Uuid characteristicUuid =
+      Uuid.parse("0000abf2-0000-1000-8000-00805f9b34fb");
+
   @override
   void initState() {
     super.initState();
@@ -122,7 +128,7 @@ class _MyHomePageState extends State<MyHomePage> {
     SoundGenerator.refreshOneCycleData();
 
     SoundGenerator.setWaveType(waveTypes.SINUSOIDAL);
-    
+
     regulateVariometer();
   }
 
@@ -135,9 +141,9 @@ class _MyHomePageState extends State<MyHomePage> {
     PermissionStatus permission;
     if (Platform.isAndroid) {
       permission = await Permission.location.request();
-      if (permission == PermissionStatus.granted){
+      if (permission == PermissionStatus.granted) {
         permission = await Permission.bluetoothScan.request();
-        
+
         permission = await Permission.bluetoothConnect.request();
       } else {
         print("Location permission denied");
@@ -149,17 +155,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 // Main scanning logic happens here ⤵️
     if (permGranted) {
-      _scanStream = flutterReactiveBle
-          .scanForDevices(withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
+      _scanStream = flutterReactiveBle.scanForDevices(
+          withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
         // Change this string to what you defined in Zephyr
         if (device.name == 'ESP_SPP_SERVER') {
-          
           print(device.serviceUuids);
           print(device.serviceData);
           setState(() {
             _ubiqueDevice = device;
             _foundDeviceWaitingToConnect = true;
-            
           });
           Future.delayed(const Duration(seconds: 1), () => _connectToDevice());
         }
@@ -172,13 +176,23 @@ class _MyHomePageState extends State<MyHomePage> {
     double cycleTimeOn = 800;
     double cycleTimeOff = 800;
     int lastTime = DateTime.now().millisecondsSinceEpoch;
-    while(true){
-      await Future.delayed(const Duration(milliseconds: 10),);
+    while (true) {
+      await Future.delayed(
+        const Duration(milliseconds: 10),
+      );
 
-      cycleTimeOn = min(max(800 - (log((currentVario.abs() * 15) + 1)) * 200 * (currentVario > 0 ? 1 : -1), 50), 1000);
+      cycleTimeOn = min(
+          max(
+              800 -
+                  (log((currentVario.abs() * 15) + 1)) *
+                      200 *
+                      (currentVario > 0 ? 1 : -1),
+              50),
+          1000);
       cycleTimeOff = cycleTimeOn;
       // start cycle
-      if (varioOn == false && DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOff){
+      if (varioOn == false &&
+          DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOff) {
         lastTime = DateTime.now().millisecondsSinceEpoch;
         varioOn = true;
         SoundGenerator.setVolume(varioVolume);
@@ -189,7 +203,9 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         }
       }
-      if (varioOn == true && DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOn && currentVario > 0) {
+      if (varioOn == true &&
+          DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOn &&
+          currentVario > 0) {
         lastTime = DateTime.now().millisecondsSinceEpoch;
         varioOn = false;
         SoundGenerator.setVolume(0);
@@ -203,7 +219,116 @@ class _MyHomePageState extends State<MyHomePage> {
       SoundGenerator.setFrequency(zeroFrequency + currentVario * 50);
     }
   }
-  
+
+  void _updateValues() {
+    //currentVario = varioData.airspeed;
+    rollAngle = varioData.roll / (2 * pi) * 360;
+    currentWarningString = "";
+    if (rollAngle.abs() < targetMinRoll) {
+      if (varioData.yawRateOverLimitCounter > circleDetectionMinTime) {
+        currentWarningString =
+            "${warningStrings[0]} ${(rollAngle).toStringAsFixed(0)}°";
+      }
+    }
+    
+    setState(() {
+      currentWarningString += varioData.updateTime.toString();
+
+      if (buttonPressed == 0) {
+        _displayText = [
+          "lat ${varioData.latitude.toString()}",
+          "lon ${varioData.longitude.toString()}",
+          "alt ${varioData.height_gps.toString()}",
+          ""
+        ];
+        currentVario = varioData.gpsSpeed.z;
+        averageWind = varioData.xcsoarEkf.circleWind;
+      } else if (buttonPressed == 1) {
+        _displayText = [
+          "spd ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
+          varioData.airspeedVector.x.toString(),
+          varioData.airspeedVector.y.toString(),
+          varioData.airspeedVector.z.toString()
+        ];
+      } else if (buttonPressed == 2) {
+        _displayText = [
+          "awx ${varioData.ardupilotWind.x.toString()}",
+          "awy ${varioData.ardupilotWind.y.toString()}",
+          "awz ${varioData.ardupilotWind.z.toString()}",
+          ""
+        ];
+      } else if (buttonPressed == 3) {
+        _displayText = [
+          "tot ${varioData.prev_raw_total_energy.toString()}",
+          "simp ${varioData.prev_simple_total_energy.toString()}",
+          "climb ${varioData.raw_climb_rate.toString()}",
+          "rd ${varioData.reading.toString()}"
+        ];
+      } else if (buttonPressed == 4) {
+        _displayText = [
+          "gx ${(varioData.gpsSpeed.x).toString()}",
+          "gy ${(varioData.gpsSpeed.y).toString()}",
+          "gz ${(varioData.gpsSpeed.z).toString()}",
+          "gps speed"
+        ];
+        currentVario = varioData.gpsSpeed.z;
+        averageWind = varioData.xcsoarEkf.circleWind;
+      } else if (buttonPressed == 5) {
+        _displayText = [
+          "xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toString()}",
+          "xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toString()}",
+          "xwz ${(varioData.xcsoarEkf.getWind()[2]).toString()}",
+          "xcsoar wind"
+        ];
+        averageWind = Vector3(varioData.xcsoarEkf.airspeedWindResult[0],
+            varioData.xcsoarEkf.airspeedWindResult[1], 0);
+      } else if (buttonPressed == 6) {
+        _displayText = [
+          "lwx ${(varioData.larusWind.x).toString()}",
+          "lwy ${(varioData.larusWind.y).toString()}",
+          "larus wind",
+          ""
+        ];
+        averageWind = varioData.larusWind;
+      } else if (buttonPressed == 7) {
+        _displayText = [
+          "vx ${(varioData.velned.x).toString()}",
+          "vy ${(varioData.velned.y).toString()}",
+          "vz ${(varioData.velned.z).toString()}",
+          "velned speed"
+        ];
+      }
+    });
+  }
+
+ Future<void> _dialogBuilder(BuildContext context) async {
+    var filesList = (await getExternalStorageDirectory())!.listSync();
+    filesList.sort((a, b) => a.path.compareTo(b.path));
+    var number = await showDialog<int>(
+    context: context,
+    builder: (BuildContext context) {
+      return SimpleDialog(
+        title: const Text('Select file'),
+        children: <Widget>[
+          SimpleDialogOption(
+            onPressed: () { Navigator.pop(context, 0); },
+            child: Text(filesList[0].path),
+          ),
+          SimpleDialogOption(
+            onPressed: () { Navigator.pop(context, 1); },
+            child: Text(filesList[1].path),
+          ),
+        ],
+      );
+    }
+  );
+  if(await number != null) {
+    print(filesList[number!]);
+    dataRestream = DataRestream(varioData, filesList[number]);
+  } else {
+    print(filesList[0]);
+  }
+  }
 
   void _connectToDevice() {
     // We're done scanning, we can cancel it
@@ -228,55 +353,24 @@ class _MyHomePageState extends State<MyHomePage> {
               _foundDeviceWaitingToConnect = false;
               _connected = true;
             });
-            
-            
-            final characteristic = QualifiedCharacteristic(serviceId: serviceUuid, characteristicId: characteristicUuid, deviceId: event.deviceId);
-            flutterReactiveBle.subscribeToCharacteristic(characteristic).listen((data) {
+
+            final characteristic = QualifiedCharacteristic(
+                serviceId: serviceUuid,
+                characteristicId: characteristicUuid,
+                deviceId: event.deviceId);
+            flutterReactiveBle.subscribeToCharacteristic(characteristic).listen(
+                (data) {
               //print(DateTime.now().millisecondsSinceEpoch);
               varioData.parse_ble_data(data);
-              //currentVario = varioData.airspeed;
-              rollAngle = varioData.roll / (2 * pi) * 360;
-              currentWarningString = "";
-              if (rollAngle < targetMinRoll) {
-                if(varioData.yawRateOverLimitCounter > circleDetectionMinTime){
-                  currentWarningString = "${warningStrings[0]} ${(rollAngle).toStringAsFixed(0)}°";
-                }
-              }
-              
-              setState(() {
-                currentWarningString += varioData.updateTime.toString();
 
-                if (buttonPressed == 0) {
-                    _displayText = ["lat ${varioData.latitude.toString()}", "lon ${varioData.longitude.toString()}", "alt ${varioData.height_gps.toString()}", ""];
-                    currentVario = varioData.gpsSpeed.z;
-                    averageWind = varioData.xcsoarEkf.circleWind;
-                } else if (buttonPressed == 1){
-                    _displayText = ["spd ${((varioData.airspeed)*3.6).toString().substring(0, 4)}", varioData.airspeedVector.x.toString(), varioData.airspeedVector.y.toString(), varioData.airspeedVector.z.toString()];
-                } else if (buttonPressed == 2) {
-                    _displayText = ["awx ${varioData.ardupilotWind.x.toString()}", "awy ${varioData.ardupilotWind.y.toString()}", "awz ${varioData.ardupilotWind.z.toString()}", ""];
-                } else if (buttonPressed == 3) {
-                    _displayText = ["tot ${varioData.prev_raw_total_energy.toString()}", "simp ${varioData.prev_simple_total_energy.toString()}", "climb ${varioData.raw_climb_rate.toString()}", "rd ${varioData.reading.toString()}"];
-                } else if (buttonPressed == 4) {
-                    _displayText = ["gx ${(varioData.gpsSpeed.x).toString()}", "gy ${(varioData.gpsSpeed.y).toString()}", "gz ${(varioData.gpsSpeed.z).toString()}", "gps speed"];
-                    currentVario = varioData.gpsSpeed.z;
-                    averageWind = varioData.xcsoarEkf.circleWind;
-                } else if (buttonPressed == 5) {
-                    _displayText = ["xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toString()}", "xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toString()}", "xwz ${(varioData.xcsoarEkf.getWind()[2]).toString()}", "xcsoar wind"];
-                    averageWind = Vector3(varioData.xcsoarEkf.airspeedWindResult[0], varioData.xcsoarEkf.airspeedWindResult[1], 0);
-                } else if (buttonPressed == 6) {
-                    _displayText = ["lwx ${(varioData.larusWind.x).toString()}", "lwy ${(varioData.larusWind.y).toString()}", "larus wind", ""];
-                    averageWind = varioData.larusWind;
-                } else if (buttonPressed == 7) {
-                    _displayText = ["vx ${(varioData.velned.x).toString()}", "vy ${(varioData.velned.y).toString()}", "vz ${(varioData.velned.z).toString()}", "velned speed"];
-                }
-              });
+              _updateValues();
             }, onError: (dynamic error) {
               print("error: $error");
               setState(() {
-              _foundDeviceWaitingToConnect = false;
-              _connected = false;
-              _startScan();
-            });
+                _foundDeviceWaitingToConnect = false;
+                _connected = false;
+                _startScan();
+              });
             }, onDone: () {
               print("done");
               _foundDeviceWaitingToConnect = false;
@@ -288,11 +382,11 @@ class _MyHomePageState extends State<MyHomePage> {
         // Can add various state state updates on disconnect
         case DeviceConnectionState.disconnected:
           {
-            if(_connected){
+            if (_connected) {
               print("disconnected");
               setState(() {
                 _connected = false;
-                _displayText = ["", "", "", ""];  
+                _displayText = ["", "", "", ""];
               });
               _startScan();
             }
@@ -305,13 +399,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if(!_scanStarted) {
+    if (!_scanStarted) {
       _startScan();
     }
     String message = "Not connected";
     if (_scanStarted) {
       message = "Scanning...";
-    } 
+    }
     if (_foundDeviceWaitingToConnect) {
       message = "Found device, connecting...";
     }
@@ -321,7 +415,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_displayText[0] != "") {
       message = _displayText[0];
     }
-    
+
     final old_vario_widgets = ListQueue<Widget>();
     int opacity_int = 255;
     int vario_counter = 0;
@@ -342,11 +436,9 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        
-        child:  Column(
-          
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
-          children: <Widget>[          
+          children: <Widget>[
             Text(
               '$message',
               style: Theme.of(context).textTheme.headlineMedium,
@@ -364,139 +456,201 @@ class _MyHomePageState extends State<MyHomePage> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             //Stack(children: old_vario_widgets.toList(growable: false),),
-            Stack(children: [Image(image: AssetImage("assets/vario_background.png"), width: scalingFactor, height: scalingFactor,),
-            //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
-            //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
-            Transform(transform: Matrix4.rotationZ((((currentVario.isFinite ? currentVario : 0.0) * 20) / 360) * (2 * pi)), alignment: FractionalOffset.center, child: Image(image: const AssetImage("assets/vario_current.png"), width: scalingFactor, height: scalingFactor,)),
-            Transform(transform: Matrix4.rotationZ((((averageVario.isFinite ? averageVario : 0.0) * 20) / 360) * (2 * pi)), alignment: FractionalOffset.center, child: Image(image: const AssetImage("assets/vario_average1.png"), width: scalingFactor, height: scalingFactor,)),
-            Transform(transform: Matrix4.rotationZ(((averageWind.angleTo(Vector3(0,0,0))))), alignment: FractionalOffset.center, child:
-              SizedBox(width: scalingFactor, height: scalingFactor, child: Icon(Icons.keyboard_backspace_rounded, color: Color.fromARGB(255, 162, 223, 255), size: scalingFactor * 0.6,))),
-            
+            Stack(children: [
+              Image(
+                image: AssetImage("assets/vario_background.png"),
+                width: scalingFactor,
+                height: scalingFactor,
+              ),
+              //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
+              //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
+              Transform(
+                  transform: Matrix4.rotationZ(
+                      (((currentVario.isFinite ? currentVario : 0.0) * 20) /
+                              360) *
+                          (2 * pi)),
+                  alignment: FractionalOffset.center,
+                  child: Image(
+                    image: const AssetImage("assets/vario_current.png"),
+                    width: scalingFactor,
+                    height: scalingFactor,
+                  )),
+              Transform(
+                  transform: Matrix4.rotationZ(
+                      (((averageVario.isFinite ? averageVario : 0.0) * 20) /
+                              360) *
+                          (2 * pi)),
+                  alignment: FractionalOffset.center,
+                  child: Image(
+                    image: const AssetImage("assets/vario_average1.png"),
+                    width: scalingFactor,
+                    height: scalingFactor,
+                  )),
+              Transform(
+                  transform: Matrix4.rotationZ(
+                      ((averageWind.angleTo(Vector3(0, 0, 0))))),
+                  alignment: FractionalOffset.center,
+                  child: SizedBox(
+                      width: scalingFactor,
+                      height: scalingFactor,
+                      child: Icon(
+                        Icons.keyboard_backspace_rounded,
+                        color: Color.fromARGB(255, 162, 223, 255),
+                        size: scalingFactor * 0.6,
+                      ))),
             ]),
-            
-            Slider(value: numCurrentVarioValues, max: 300, onChanged: (double value) {
-              setState(() {
-                numCurrentVarioValues = value;
-                varioVolume = value / 300;
-              });
-            },),
-            Slider(value: num_old_vario_values, max: 300, onChanged: (double value) {
-              setState(() {
-                num_old_vario_values = value;
-                //oldVario = value / 15 - 5;
-                //currentVario = value / 30 - 5;
-              });
-            },),
-            Slider(value: opacity_correction_value, max: 1, onChanged: (double value) {
-              setState(() {
-                opacity_correction_value = value;
-              });
-            },),
+
+            Slider(
+              value: numCurrentVarioValues,
+              max: 300,
+              onChanged: (double value) {
+                setState(() {
+                  numCurrentVarioValues = value;
+                  varioVolume = value / 300;
+                });
+              },
+            ),
+            Slider(
+              value: num_old_vario_values,
+              max: 300,
+              onChanged: (double value) {
+                setState(() {
+                  num_old_vario_values = value;
+                  //oldVario = value / 15 - 5;
+                  //currentVario = value / 30 - 5;
+                });
+              },
+            ),
+            Slider(
+              value: opacity_correction_value,
+              max: 1,
+              onChanged: (double value) {
+                setState(() {
+                  opacity_correction_value = value;
+                });
+              },
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: <Widget>[
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 0;
-                  });
-                }, icon: const Icon(
-                  Icons.location_on,
-                  color: Colors.green,
-                  size: 40.0,
-                )),
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 1;
-                  });
-                }, icon: const Icon(
-                  Icons.speed,
-                  color: Colors.red,
-                  size: 40.0,
-                )),
-                
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 3;
-                    
-                    SoundGenerator.play();
-                  });
-                }, icon: const Icon(
-                  Icons.cloud_upload,
-                  color: Colors.blue,
-                  size: 40.0,
-                )),
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 4;
-                  });
-                }, icon: const Icon(
-                  Icons.subway_rounded,
-                  color: Colors.brown,
-                  size: 40.0,
-                )),
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 7;
-                  });
-                }, icon: const Icon(
-                  Icons.computer,
-                  color: Colors.brown,
-                  size: 40.0,
-                )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 0;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.location_on,
+                      color: Colors.green,
+                      size: 40.0,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 1;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.speed,
+                      color: Colors.red,
+                      size: 40.0,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 3;
+
+                        SoundGenerator.play();
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.cloud_upload,
+                      color: Colors.blue,
+                      size: 40.0,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 4;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.subway_rounded,
+                      color: Colors.brown,
+                      size: 40.0,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 7;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.computer,
+                      color: Colors.brown,
+                      size: 40.0,
+                    )),
               ],
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [                
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 5;
-                  });
-                }, icon: const Icon(
-                  Icons.airplane_ticket,
-                  color: Colors.yellow,
-                  size: 40.0,
-                )),
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 2;
-                    
-                    SoundGenerator.stop();
-                  });
-                }, icon: const Icon(
-                  Icons.airplanemode_active_outlined,
-                  color: Colors.yellow,
-                  size: 40.0,
-                )),
-                IconButton(onPressed: (){
-                  setState(() {
-                    buttonPressed = 6;
-                    
-                    SoundGenerator.stop();
-                  });
-                }, icon: const Icon(
-                  Icons.connecting_airports_rounded,
-                  color: Colors.yellow,
-                  size: 40.0,
-                )),
-              ],
-            ),Container(color: varioColor,
-            child:
-                IconButton(onPressed: (){
-                  setState(() {
-                    colorSwitchVario = !colorSwitchVario;
-                  });
-                }, icon: Icon(
-                  Icons.timelapse,
-                  color: varioData.updateTime < 100 ? Colors.green : Colors.red,
-                  size: 40.0,
-                )),),
-                Container(color: warningColors[warningColorIndex], child: Text(currentWarningString, style: TextStyle(fontSize: 60, color: warningColors[(warningColorIndex + 1) % 2]),),)
+              children: [
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 5;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.airplane_ticket,
+                      color: Colors.yellow,
+                      size: 40.0,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 2;
 
+                        SoundGenerator.stop();
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.airplanemode_active_outlined,
+                      color: Colors.yellow,
+                      size: 40.0,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      setState(() {
+                        buttonPressed = 6;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.connecting_airports_rounded,
+                      color: Colors.yellow,
+                      size: 40.0,
+                    )),
+                    
+                IconButton(
+                    onPressed: () => _dialogBuilder(context),
+                    icon: const Icon(
+                      Icons.settings,
+                      color: Colors.grey,
+                      size: 40.0,
+                    )),
+              ],
+            ),
+            Container(
+              color: warningColors[warningColorIndex],
+              child: Text(
+                currentWarningString,
+                style: TextStyle(
+                    fontSize: 60,
+                    color: warningColors[(warningColorIndex + 1) % 2]),
+              ),
+            )
           ],
-          
         ),
-        
       ),
     );
   }
