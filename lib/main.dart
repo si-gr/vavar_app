@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:ffi';
 import 'dart:math';
 
 import 'package:ble_larus_android/xcsoar_windekf.dart';
@@ -13,6 +14,7 @@ import 'package:sound_generator/sound_generator.dart';
 import 'package:sound_generator/waveTypes.dart';
 import 'package:vector_math/vector_math.dart' hide Colors, Matrix4;
 import 'dart:io';
+import 'dart:isolate';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -90,6 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double oldVario = 0;
   double averageVario = 0;
   Vector3 averageWind = Vector3(0, 0, 0);
+  Vector3 longAverageWind = Vector3(0, 0, 0);
   final oldVarioQueue = ListQueue<double>();
   double numCurrentVarioValues = 50;
   double num_old_vario_values = 50;
@@ -98,6 +101,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
   bool _connected = false;
+  Future<int> _mLineCounter = Future.value(0);
 // Bluetooth related variables
   late DiscoveredDevice _ubiqueDevice;
   
@@ -230,6 +234,7 @@ class _MyHomePageState extends State<MyHomePage> {
             "${warningStrings[0]} ${(rollAngle).toStringAsFixed(0)}°";
       }
     }
+    longAverageWind = longAverageWind * 0.9 + averageWind * 0.1;
     
     setState(() {
       currentWarningString += varioData.updateTime.toString();
@@ -301,6 +306,15 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+Future<void> _regularUpdates() async {
+  _updateValues();
+  while (DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate <
+      5000) {
+    await Future.delayed(const Duration(milliseconds: 1));
+    _updateValues();
+  }
+}
+
  Future<void> _dialogBuilder(BuildContext context) async {
     var filesList = (await getExternalStorageDirectory())!.listSync();
     filesList.sort((a, b) => a.path.compareTo(b.path));
@@ -310,14 +324,11 @@ class _MyHomePageState extends State<MyHomePage> {
       return SimpleDialog(
         title: const Text('Select file'),
         children: <Widget>[
-          SimpleDialogOption(
-            onPressed: () { Navigator.pop(context, 0); },
-            child: Text(filesList[0].path),
-          ),
-          SimpleDialogOption(
-            onPressed: () { Navigator.pop(context, 1); },
-            child: Text(filesList[1].path),
-          ),
+          for (var i = 0; i < filesList.length; i++)
+            SimpleDialogOption(
+              onPressed: () { Navigator.pop(context, i); },
+              child: Text(filesList[i].path),
+            ),
         ],
       );
     }
@@ -325,6 +336,9 @@ class _MyHomePageState extends State<MyHomePage> {
   if(await number != null) {
     print(filesList[number!]);
     dataRestream = DataRestream(varioData, filesList[number]);
+    dataRestream.restreamFile().then((value) => print("finished"));
+    _regularUpdates();
+
   } else {
     print(filesList[0]);
   }
@@ -496,6 +510,18 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Icon(
                         Icons.keyboard_backspace_rounded,
                         color: Color.fromARGB(255, 162, 223, 255),
+                        size: scalingFactor * 0.6,
+                      ))),
+              Transform(
+                  transform: Matrix4.rotationZ(
+                      ((longAverageWind.angleTo(Vector3(0, 0, 0))))),
+                  alignment: FractionalOffset.center,
+                  child: SizedBox(
+                      width: scalingFactor,
+                      height: scalingFactor,
+                      child: Icon(
+                        Icons.keyboard_backspace_rounded,
+                        color: Color.fromARGB(255, 141, 141, 141),
                         size: scalingFactor * 0.6,
                       ))),
             ]),

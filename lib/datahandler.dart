@@ -77,6 +77,29 @@ class VarioData {
     //await logFile.writeAsString('${DateTime.now().millisecondsSinceEpoch},$data\n', mode: FileMode.append);
   }
 
+  void calculateYawUpdate(newYaw) {
+    larusWind = gpsSpeed - airspeedVector;
+    yawRate = (yaw - newYaw) /
+        ((DateTime.now().millisecondsSinceEpoch - lastYawUpdate) / 1000.0);
+    if (yawRate.abs() < yawRateTurn) {
+      yawRateOverLimitCounter = 0;
+      xcsoarEkf.resetCircleSamples();
+    } else if (yawRateOverLimitCounter == 0) {
+      yawRateOverLimitCounter = lastYawUpdate;
+    }
+    yaw = newYaw;
+    lastYawUpdate = DateTime.now().millisecondsSinceEpoch;
+  }
+
+  void calculateGPSSpeedUpdate() {
+    if (yawRate.abs() > yawRateTurn) {
+      xcsoarEkf.addCircleSample(
+          gpsSpeed, DateTime.now().millisecondsSinceEpoch);
+    }
+    xcsoarEkf.update(airspeed, gpsSpeed);
+    xcsoarEkfVelned.update(airspeed, velned);
+  }
+
   void parse_ble_data(List<int> data) {
     updateTime = DateTime.now().millisecondsSinceEpoch - lastUpdate;
     lastUpdate = DateTime.now().millisecondsSinceEpoch;
@@ -110,19 +133,9 @@ class VarioData {
         ground_speed = byteData.getFloat32(8, Endian.little);
         ground_course = byteData.getFloat32(12, Endian.little);
         double newYaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
-        larusWind = gpsSpeed - airspeedVector;
-        yawRate = (yaw - newYaw) /
-            ((DateTime.now().millisecondsSinceEpoch - lastYawUpdate) / 1000.0);
-        if (yawRate.abs() < yawRateTurn) {
-          yawRateOverLimitCounter = 0;
-          xcsoarEkf.resetCircleSamples();
-        } else if (yawRateOverLimitCounter == 0) {
-          yawRateOverLimitCounter = lastYawUpdate;
-        }
-        yaw = newYaw;
-        lastYawUpdate = DateTime.now().millisecondsSinceEpoch;
+        calculateYawUpdate(newYaw);
         writeData(
-            '2,${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${yawRate.toStringAsFixed(4)}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)}');
         break;
       case 3:
         prev_raw_total_energy = byteData.getFloat32(0, Endian.little);
@@ -142,12 +155,7 @@ class VarioData {
             byteData.getInt16(6, Endian.little) / 500.0,
             byteData.getInt16(8, Endian.little) / 500.0,
             byteData.getInt16(10, Endian.little) / 500.0);
-        if (yawRate.abs() > yawRateTurn) {
-          xcsoarEkf.addCircleSample(
-              gpsSpeed, DateTime.now().millisecondsSinceEpoch);
-        }
-        xcsoarEkf.update(airspeed, gpsSpeed);
-        xcsoarEkfVelned.update(airspeed, velned);
+        calculateGPSSpeedUpdate();
         writeData(
             '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
         break;
