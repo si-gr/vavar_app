@@ -26,6 +26,7 @@ class VarioData {
   double yawRate = double.nan; // yaw per second
   int lastYawUpdate = 0; // time in ms of last yaw update
   double yawRateTurn = 0.5; // yaw rate to count as a turn
+  int turnStartTime = 0; // time in ms of start of turn
   int yawRateOverLimitCounter = 0; // counter for how many ms
 
   double prev_raw_total_energy = double.nan;
@@ -83,9 +84,10 @@ class VarioData {
         ((DateTime.now().millisecondsSinceEpoch - lastYawUpdate) / 1000.0);
     if (yawRate.abs() < yawRateTurn) {
       yawRateOverLimitCounter = 0;
+      turnStartTime = DateTime.now().millisecondsSinceEpoch;
       xcsoarEkf.resetCircleSamples();
     } else if (yawRateOverLimitCounter == 0) {
-      yawRateOverLimitCounter = lastYawUpdate;
+      yawRateOverLimitCounter = DateTime.now().millisecondsSinceEpoch - turnStartTime;
     }
     yaw = newYaw;
     lastYawUpdate = DateTime.now().millisecondsSinceEpoch;

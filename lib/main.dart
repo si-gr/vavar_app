@@ -69,8 +69,8 @@ class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
   VarioData varioData = VarioData();
   int buttonPressed = 0;
-  final double scalingFactor = 400;
-  final double zeroFrequency = 400;
+  final double scalingFactor = 300;
+  final double zeroFrequency = 250;
   final int sampleRate = 20000;
   int circleDetectionMinTime =
       5000; // minimum time for turn is detected as circle in ms
@@ -104,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<int> _mLineCounter = Future.value(0);
 // Bluetooth related variables
   late DiscoveredDevice _ubiqueDevice;
-  
+
   late DataRestream dataRestream;
   final flutterReactiveBle = FlutterReactiveBle();
 
@@ -235,7 +235,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     longAverageWind = longAverageWind * 0.9 + averageWind * 0.1;
-    
+
     setState(() {
       currentWarningString += varioData.updateTime.toString();
 
@@ -269,6 +269,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "climb ${varioData.raw_climb_rate.toString()}",
           "rd ${varioData.reading.toString()}"
         ];
+        currentVario = varioData.reading;
       } else if (buttonPressed == 4) {
         _displayText = [
           "gx ${(varioData.gpsSpeed.x).toString()}",
@@ -306,42 +307,42 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-Future<void> _regularUpdates() async {
-  _updateValues();
-  while (DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate <
-      5000) {
-    await Future.delayed(const Duration(milliseconds: 1));
+  Future<void> _regularUpdates() async {
     _updateValues();
+    while (
+        DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate < 5000) {
+      await Future.delayed(const Duration(milliseconds: 1));
+      _updateValues();
+    }
   }
-}
 
- Future<void> _dialogBuilder(BuildContext context) async {
+  Future<void> _dialogBuilder(BuildContext context) async {
     var filesList = (await getExternalStorageDirectory())!.listSync();
     filesList.sort((a, b) => a.path.compareTo(b.path));
     var number = await showDialog<int>(
-    context: context,
-    builder: (BuildContext context) {
-      return SimpleDialog(
-        title: const Text('Select file'),
-        children: <Widget>[
-          for (var i = 0; i < filesList.length; i++)
-            SimpleDialogOption(
-              onPressed: () { Navigator.pop(context, i); },
-              child: Text(filesList[i].path),
-            ),
-        ],
-      );
+        context: context,
+        builder: (BuildContext context) {
+          return SimpleDialog(
+            title: const Text('Select file'),
+            children: <Widget>[
+              for (var i = 0; i < filesList.length; i++)
+                SimpleDialogOption(
+                  onPressed: () {
+                    Navigator.pop(context, i);
+                  },
+                  child: Text(filesList[i].path),
+                ),
+            ],
+          );
+        });
+    if (await number != null) {
+      print(filesList[number!]);
+      dataRestream = DataRestream(varioData, filesList[number]);
+      dataRestream.restreamFile();//.then((value) => print("finished"));
+      _regularUpdates();
+    } else {
+      print(filesList[0]);
     }
-  );
-  if(await number != null) {
-    print(filesList[number!]);
-    dataRestream = DataRestream(varioData, filesList[number]);
-    dataRestream.restreamFile().then((value) => print("finished"));
-    _regularUpdates();
-
-  } else {
-    print(filesList[0]);
-  }
   }
 
   void _connectToDevice() {
@@ -446,236 +447,225 @@ Future<void> _regularUpdates() async {
     }
     */
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              '$message',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            Text(
-              '${_displayText[1]}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            Text(
-              '${_displayText[2]}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            Text(
-              '${_displayText[3]}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            //Stack(children: old_vario_widgets.toList(growable: false),),
-            Stack(children: [
-              Image(
-                image: AssetImage("assets/vario_background.png"),
-                width: scalingFactor,
-                height: scalingFactor,
-              ),
-              //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
-              //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
-              Transform(
-                  transform: Matrix4.rotationZ(
-                      (((currentVario.isFinite ? currentVario : 0.0) * 20) /
-                              360) *
-                          (2 * pi)),
-                  alignment: FractionalOffset.center,
-                  child: Image(
-                    image: const AssetImage("assets/vario_current.png"),
-                    width: scalingFactor,
-                    height: scalingFactor,
-                  )),
-              Transform(
-                  transform: Matrix4.rotationZ(
-                      (((averageVario.isFinite ? averageVario : 0.0) * 20) /
-                              360) *
-                          (2 * pi)),
-                  alignment: FractionalOffset.center,
-                  child: Image(
-                    image: const AssetImage("assets/vario_average1.png"),
-                    width: scalingFactor,
-                    height: scalingFactor,
-                  )),
-              Transform(
-                  transform: Matrix4.rotationZ(
-                      ((averageWind.angleTo(Vector3(0, 0, 0))))),
-                  alignment: FractionalOffset.center,
-                  child: SizedBox(
+      body: SingleChildScrollView(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              //Stack(children: old_vario_widgets.toList(growable: false),),
+              Stack(children: [
+                Image(
+                  image: AssetImage("assets/vario_background.png"),
+                  width: scalingFactor,
+                  height: scalingFactor,
+                ),
+                //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
+                //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
+                Transform(
+                    transform: Matrix4.rotationZ(
+                        (((currentVario.isFinite ? currentVario : 0.0) * 20) /
+                                360) *
+                            (2 * pi)),
+                    alignment: FractionalOffset.center,
+                    child: Image(
+                      image: const AssetImage("assets/vario_current.png"),
                       width: scalingFactor,
                       height: scalingFactor,
-                      child: Icon(
-                        Icons.keyboard_backspace_rounded,
-                        color: Color.fromARGB(255, 162, 223, 255),
-                        size: scalingFactor * 0.6,
-                      ))),
-              Transform(
-                  transform: Matrix4.rotationZ(
-                      ((longAverageWind.angleTo(Vector3(0, 0, 0))))),
-                  alignment: FractionalOffset.center,
-                  child: SizedBox(
+                    )),
+                Transform(
+                    transform: Matrix4.rotationZ(
+                        (((averageVario.isFinite ? averageVario : 0.0) * 20) /
+                                360) *
+                            (2 * pi)),
+                    alignment: FractionalOffset.center,
+                    child: Image(
+                      image: const AssetImage("assets/vario_average1.png"),
                       width: scalingFactor,
                       height: scalingFactor,
-                      child: Icon(
-                        Icons.keyboard_backspace_rounded,
-                        color: Color.fromARGB(255, 141, 141, 141),
-                        size: scalingFactor * 0.6,
-                      ))),
-            ]),
+                    )),
+                Transform(
+                    transform: Matrix4.rotationZ(
+                        ((averageWind.angleTo(varioData.airspeedVector)))),
+                    alignment: FractionalOffset.center,
+                    child: SizedBox(
+                        width: scalingFactor,
+                        height: scalingFactor,
+                        child: Icon(
+                          Icons.keyboard_backspace_rounded,
+                          color: Color.fromARGB(255, 162, 223, 255),
+                          size: scalingFactor * 0.6,
+                        ))),
+                Transform(
+                    transform: Matrix4.rotationZ(
+                        ((longAverageWind.angleTo(Vector3(0, 0, 0))))),
+                    alignment: FractionalOffset.center,
+                    child: SizedBox(
+                        width: scalingFactor,
+                        height: scalingFactor,
+                        child: Icon(
+                          Icons.keyboard_backspace_rounded,
+                          color: Color.fromARGB(255, 141, 141, 141),
+                          size: scalingFactor * 0.6,
+                        ))),
+              ]),
 
-            Slider(
-              value: numCurrentVarioValues,
-              max: 300,
-              onChanged: (double value) {
-                setState(() {
-                  numCurrentVarioValues = value;
-                  varioVolume = value / 300;
-                });
-              },
-            ),
-            Slider(
-              value: num_old_vario_values,
-              max: 300,
-              onChanged: (double value) {
-                setState(() {
-                  num_old_vario_values = value;
-                  //oldVario = value / 15 - 5;
-                  //currentVario = value / 30 - 5;
-                });
-              },
-            ),
-            Slider(
-              value: opacity_correction_value,
-              max: 1,
-              onChanged: (double value) {
-                setState(() {
-                  opacity_correction_value = value;
-                });
-              },
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: <Widget>[
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 0;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.location_on,
-                      color: Colors.green,
-                      size: 40.0,
-                    )),
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 1;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.speed,
-                      color: Colors.red,
-                      size: 40.0,
-                    )),
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 3;
-
-                        SoundGenerator.play();
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.cloud_upload,
-                      color: Colors.blue,
-                      size: 40.0,
-                    )),
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 4;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.subway_rounded,
-                      color: Colors.brown,
-                      size: 40.0,
-                    )),
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 7;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.computer,
-                      color: Colors.brown,
-                      size: 40.0,
-                    )),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 5;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.airplane_ticket,
-                      color: Colors.yellow,
-                      size: 40.0,
-                    )),
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 2;
-
-                        SoundGenerator.stop();
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.airplanemode_active_outlined,
-                      color: Colors.yellow,
-                      size: 40.0,
-                    )),
-                IconButton(
-                    onPressed: () {
-                      setState(() {
-                        buttonPressed = 6;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.connecting_airports_rounded,
-                      color: Colors.yellow,
-                      size: 40.0,
-                    )),
-                    
-                IconButton(
-                    onPressed: () => _dialogBuilder(context),
-                    icon: const Icon(
-                      Icons.settings,
-                      color: Colors.grey,
-                      size: 40.0,
-                    )),
-              ],
-            ),
-            Container(
-              color: warningColors[warningColorIndex],
-              child: Text(
-                currentWarningString,
-                style: TextStyle(
-                    fontSize: 60,
-                    color: warningColors[(warningColorIndex + 1) % 2]),
+              Slider(
+                value: numCurrentVarioValues,
+                max: 300,
+                onChanged: (double value) {
+                  setState(() {
+                    numCurrentVarioValues = value;
+                    varioVolume = value / 300;
+                  });
+                },
               ),
-            )
-          ],
+              Slider(
+                value: num_old_vario_values,
+                max: 300,
+                onChanged: (double value) {
+                  setState(() {
+                    num_old_vario_values = value;
+                    //oldVario = value / 15 - 5;
+                    //currentVario = value / 30 - 5;
+                  });
+                },
+              ),
+              Text(
+                '$message',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              Text(
+                '${_displayText[1]}',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              Text(
+                '${_displayText[2]}',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              Text(
+                '${_displayText[3]}',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: <Widget>[
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 0;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.location_on,
+                        color: Colors.green,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 1;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.speed,
+                        color: Colors.red,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 3;
+
+                          SoundGenerator.play();
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.cloud_upload,
+                        color: Colors.blue,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 4;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.subway_rounded,
+                        color: Colors.brown,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 7;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.computer,
+                        color: Colors.brown,
+                        size: 40.0,
+                      )),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 5;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.airplane_ticket,
+                        color: Colors.yellow,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 2;
+
+                          SoundGenerator.stop();
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.airplanemode_active_outlined,
+                        color: Colors.yellow,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          buttonPressed = 6;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.connecting_airports_rounded,
+                        color: Colors.yellow,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () => _dialogBuilder(context),
+                      icon: const Icon(
+                        Icons.settings,
+                        color: Colors.grey,
+                        size: 40.0,
+                      )),
+                ],
+              ),
+              Container(
+                color: warningColors[warningColorIndex],
+                child: Text(
+                  currentWarningString,
+                  style: TextStyle(
+                      fontSize: 30,
+                      color: warningColors[(warningColorIndex + 1) % 2]),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );
