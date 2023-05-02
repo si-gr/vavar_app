@@ -5,7 +5,7 @@ class SettingsDialog extends StatefulWidget {
   _SettingsDialogState createState() => _SettingsDialogState();
 
   double val = 0;
-  SettingsDialog();
+  SettingsDialog({super.key});
 }
 
 class _SettingsDialogState extends State<SettingsDialog> {

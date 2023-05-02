@@ -10,18 +10,16 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 
 class DataRestream {
-  
   VarioData varioData;
   FileSystemEntity logFilePath;
   int realStartTime = 0;
   int timeOffset = 0;
 
   //DataRestream(this.varioData, this.logFilePath); // constructor
-  
+
   DataRestream(this.varioData, this.logFilePath) {
     // create new thread for data restream
     realStartTime = DateTime.now().millisecondsSinceEpoch;
-
   } // constructor
 
   Future<int> restreamFile() async {
@@ -30,13 +28,15 @@ class DataRestream {
     var lines = file.readAsLinesSync();
     print(lines[0]);
     print("Length: ${lines.length}");
-    int logStartTime = int.parse(lines[0].substring(0, lines[0].indexOf(',') - 1));
+    int logStartTime =
+        int.parse(lines[0].substring(0, lines[0].indexOf(',') - 1));
     timeOffset = realStartTime - logStartTime;
     int lineCounter = 1;
     while (lineCounter < lines.length) {
-      while (getLineTime(lines[lineCounter]) > DateTime.now().millisecondsSinceEpoch - timeOffset) {
+      while (getLineTime(lines[lineCounter]) >
+          DateTime.now().millisecondsSinceEpoch - timeOffset) {
         await Future.delayed(Duration(milliseconds: 1));
-        
+
         //print("lt ${getLineTime(lines[lineCounter])} ${DateTime.now().millisecondsSinceEpoch - timeOffset}");
       }
       updateVarioData(lines[lineCounter]);
@@ -50,7 +50,7 @@ class DataRestream {
   int getLineTime(String line) {
     if (line.indexOf(',') > 0) {
       try {
-      return int.parse(line.substring(0, line.indexOf(',') - 1));
+        return int.parse(line.substring(0, line.indexOf(',') - 1));
       } on FormatException {
         print("Error parsing line time");
         return 0;
@@ -64,60 +64,80 @@ class DataRestream {
   }
 
   void updateVarioData(String line) {
-    var splittedLine = line.split(',');
+    var splittedLine = line.split("~")[0].split(',');
     if (splittedLine.length < 3) {
       return;
     }
-    try{
-    switch (splittedLine[1]){
-      case '0':
-        // '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}');
-        varioData.airspeed = double.parse(stripNonNumeric(splittedLine[2]));
-        varioData.airspeedVector = Vector3(double.parse(stripNonNumeric(splittedLine[3])), double.parse(stripNonNumeric(splittedLine[4])), double.parse(stripNonNumeric(splittedLine[5])));
-        varioData.roll = double.parse(stripNonNumeric(splittedLine[6]));
-        break;
-      case '1':
-        // '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}');
-        varioData.ardupilotWind = Vector3(double.parse(stripNonNumeric(splittedLine[2])), double.parse(stripNonNumeric(splittedLine[3])), double.parse(stripNonNumeric(splittedLine[4])));
-        varioData.height_gps = double.parse(stripNonNumeric(splittedLine[5]));
-        varioData.pitch = double.parse(stripNonNumeric(splittedLine[6]));
-        break;
-      case '2':
-        // '2,${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${yawRate.toStringAsFixed(4)}');
-        varioData.latitude = int.parse(stripNonNumeric(splittedLine[2]));
-        varioData.longitude = int.parse(stripNonNumeric(splittedLine[3]));
-        varioData.ground_speed = double.parse(stripNonNumeric(splittedLine[4]));
-        varioData.ground_course = double.parse(stripNonNumeric(splittedLine[5]));
-        varioData.yaw = double.parse(stripNonNumeric(splittedLine[6]));
-        varioData.larusWind = Vector3(double.parse(stripNonNumeric(splittedLine[7])), double.parse(stripNonNumeric(splittedLine[8])), double.parse(stripNonNumeric(splittedLine[9])));
-        varioData.calculateYawUpdate(double.parse(stripNonNumeric(splittedLine[10])));
-        break;
-      case '3':
-        // '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}');
-        varioData.prev_raw_total_energy = double.parse(stripNonNumeric(splittedLine[2]));
-        varioData.prev_simple_total_energy = double.parse(stripNonNumeric(splittedLine[3]));
-        varioData.raw_climb_rate = double.parse(stripNonNumeric(splittedLine[4]));
-        varioData.simple_climb_rate = double.parse(stripNonNumeric(splittedLine[5]));
-        varioData.reading = double.parse(stripNonNumeric(splittedLine[6]));
-        break;
-      case '4':
-        // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
-        varioData.gpsSpeed = Vector3(double.parse(stripNonNumeric(splittedLine[2])), double.parse(stripNonNumeric(splittedLine[3])), double.parse(stripNonNumeric(splittedLine[4])));
-        varioData.velned = Vector3(double.parse(stripNonNumeric(splittedLine[5])), double.parse(stripNonNumeric(splittedLine[6])), double.parse(stripNonNumeric(splittedLine[7])));
-        varioData.calculateGPSSpeedUpdate();
-        break;
-      default:
-        break;
-    }
+    try {
+      switch (splittedLine[1]) {
+        case '0':
+          // '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}');
+          varioData.airspeed = double.parse(stripNonNumeric(splittedLine[2]));
+          varioData.airspeedVector = Vector3(
+              double.parse(stripNonNumeric(splittedLine[3])),
+              double.parse(stripNonNumeric(splittedLine[4])),
+              double.parse(stripNonNumeric(splittedLine[5])));
+          varioData.roll = double.parse(stripNonNumeric(splittedLine[6]));
+          break;
+        case '1':
+          // '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}');
+          varioData.ardupilotWind = Vector3(
+              double.parse(stripNonNumeric(splittedLine[2])),
+              double.parse(stripNonNumeric(splittedLine[3])),
+              double.parse(stripNonNumeric(splittedLine[4])));
+          varioData.height_gps = double.parse(stripNonNumeric(splittedLine[5]));
+          varioData.pitch = double.parse(stripNonNumeric(splittedLine[6]));
+          break;
+        case '2':
+          // '2,${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${yawRate.toStringAsFixed(4)}');
+          varioData.latitude = int.parse(stripNonNumeric(splittedLine[2]));
+          varioData.longitude = int.parse(stripNonNumeric(splittedLine[3]));
+          varioData.ground_speed =
+              double.parse(stripNonNumeric(splittedLine[4]));
+          varioData.ground_course =
+              double.parse(stripNonNumeric(splittedLine[5]));
+          varioData.yaw = double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.larusWind = Vector3(
+              double.parse(stripNonNumeric(splittedLine[7])),
+              double.parse(stripNonNumeric(splittedLine[8])),
+              double.parse(stripNonNumeric(splittedLine[9])));
+          varioData.calculateYawUpdate(
+              double.parse(stripNonNumeric(splittedLine[10])));
+          break;
+        case '3':
+          // '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}');
+          varioData.prev_raw_total_energy =
+              double.parse(stripNonNumeric(splittedLine[2]));
+          varioData.prev_simple_total_energy =
+              double.parse(stripNonNumeric(splittedLine[3]));
+          varioData.raw_climb_rate =
+              double.parse(stripNonNumeric(splittedLine[4]));
+          varioData.simple_climb_rate =
+              double.parse(stripNonNumeric(splittedLine[5]));
+          varioData.reading = double.parse(stripNonNumeric(splittedLine[6]));
+          break;
+        case '4':
+          // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
+          varioData.gpsSpeed = Vector3(
+              double.parse(stripNonNumeric(splittedLine[2])),
+              double.parse(stripNonNumeric(splittedLine[3])),
+              double.parse(stripNonNumeric(splittedLine[4])));
+          varioData.velned = Vector3(
+              double.parse(stripNonNumeric(splittedLine[5])),
+              double.parse(stripNonNumeric(splittedLine[6])),
+              double.parse(stripNonNumeric(splittedLine[7])));
+          varioData.calculateGPSSpeedUpdate();
+          break;
+        default:
+          break;
+      }
     } on RangeError catch (e) {
       print(e);
     } on FormatException catch (e) {
       print(e);
     }
-    varioData.updateTime = DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate;
+    varioData.updateTime =
+        DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate;
     varioData.lastUpdate = DateTime.now().millisecondsSinceEpoch;
   }
-
-
-
 }

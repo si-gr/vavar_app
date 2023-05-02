@@ -54,7 +54,7 @@ class VarioData {
 
   Future<void> writeStreamedData(Stream<String> dataStream) async {
     IOSink logFileSink = File(logFilePath).openWrite(mode: FileMode.append);
-    await for (final dataString in dataStream) {
+    await for (final dataString in dataStream.distinct()) {
       logFileSink
           .write('${DateTime.now().millisecondsSinceEpoch},$dataString\n');
     }
@@ -87,7 +87,8 @@ class VarioData {
       turnStartTime = DateTime.now().millisecondsSinceEpoch;
       xcsoarEkf.resetCircleSamples();
     } else if (yawRateOverLimitCounter == 0) {
-      yawRateOverLimitCounter = DateTime.now().millisecondsSinceEpoch - turnStartTime;
+      yawRateOverLimitCounter =
+          DateTime.now().millisecondsSinceEpoch - turnStartTime;
     }
     yaw = newYaw;
     lastYawUpdate = DateTime.now().millisecondsSinceEpoch;
@@ -108,6 +109,10 @@ class VarioData {
     int blePacketNum = data[data.length - 1];
     final bytes = Uint8List.fromList(data);
     final byteData = ByteData.sublistView(bytes);
+    String logString = "";
+    for (int datItem in data) {
+      logString += "$datItem,";
+    }
     switch (blePacketNum) {
       case 0:
         airspeed = byteData.getFloat32(0, Endian.little);
@@ -117,7 +122,7 @@ class VarioData {
             byteData.getFloat32(12, Endian.little));
         roll = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         writeData(
-            '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}');
+            '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}~$logString');
         break;
       case 1:
         ardupilotWind = Vector3(
@@ -127,17 +132,17 @@ class VarioData {
         height_gps = byteData.getFloat32(12, Endian.little);
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         writeData(
-            '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}');
+            '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~$logString');
         break;
       case 2:
-        latitude = byteData.getInt32(0, Endian.little);
-        longitude = byteData.getInt32(4, Endian.little);
-        ground_speed = byteData.getFloat32(8, Endian.little);
-        ground_course = byteData.getFloat32(12, Endian.little);
+        ground_course = byteData.getFloat32(0, Endian.little);
+        latitude = byteData.getInt32(4, Endian.little);
+        longitude = byteData.getInt32(8, Endian.little);
+        ground_speed = byteData.getFloat32(12, Endian.little);
         double newYaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         calculateYawUpdate(newYaw);
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)}~$logString');
         break;
       case 3:
         prev_raw_total_energy = byteData.getFloat32(0, Endian.little);
@@ -146,7 +151,7 @@ class VarioData {
         simple_climb_rate = byteData.getFloat32(12, Endian.little);
         reading = byteData.getInt16(16, Endian.little) / 100.0;
         writeData(
-            '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}');
+            '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~$logString');
         break;
       case 4:
         gpsSpeed = Vector3(
@@ -159,7 +164,7 @@ class VarioData {
             byteData.getInt16(10, Endian.little) / 500.0);
         calculateGPSSpeedUpdate();
         writeData(
-            '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
+            '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~$logString');
         break;
       default:
         break;

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:ble_larus_android/datahandler.dart';
 import 'package:ble_larus_android/datarestream.dart';
+import 'package:ble_larus_android/settingsDialog.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' show Platform;
 import 'dart:async';
@@ -102,6 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _scanStarted = false;
   bool _connected = false;
   Future<int> _mLineCounter = Future.value(0);
+  SettingsDialog settingsDialog = SettingsDialog();
 // Bluetooth related variables
   late DiscoveredDevice _ubiqueDevice;
 
@@ -269,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "climb ${varioData.raw_climb_rate.toString()}",
           "rd ${varioData.reading.toString()}"
         ];
-        currentVario = varioData.reading;
+        currentVario = varioData.raw_climb_rate;
       } else if (buttonPressed == 4) {
         _displayText = [
           "gx ${(varioData.gpsSpeed.x).toString()}",
@@ -338,10 +340,12 @@ class _MyHomePageState extends State<MyHomePage> {
     if (await number != null) {
       print(filesList[number!]);
       dataRestream = DataRestream(varioData, filesList[number]);
-      dataRestream.restreamFile();//.then((value) => print("finished"));
+      dataRestream.restreamFile(); //.then((value) => print("finished"));
       _regularUpdates();
     } else {
-      print(filesList[0]);
+      if (filesList.length > 0) {
+        print(filesList[0]);
+      }
     }
   }
 
@@ -648,6 +652,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       )),
                   IconButton(
                       onPressed: () => _dialogBuilder(context),
+                      icon: const Icon(
+                        Icons.fast_rewind,
+                        color: Colors.grey,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () => showDialog(
+                          context: context,
+                          builder: (context) => settingsDialog),
                       icon: const Icon(
                         Icons.settings,
                         color: Colors.grey,
