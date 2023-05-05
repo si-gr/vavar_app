@@ -8,6 +8,7 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:ble_larus_android/datahandler.dart';
 import 'package:ble_larus_android/datarestream.dart';
 import 'package:ble_larus_android/settingsDialog.dart';
+import 'package:ble_larus_android/vario.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io' show Platform;
 import 'dart:async';
@@ -18,6 +19,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -70,6 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
   VarioData varioData = VarioData();
   int buttonPressed = 0;
+  Map<String, double> settingsValues = {};
   final double scalingFactor = 300;
   final double zeroFrequency = 250;
   final int sampleRate = 20000;
@@ -94,16 +97,11 @@ class _MyHomePageState extends State<MyHomePage> {
   double averageVario = 0;
   Vector3 averageWind = Vector3(0, 0, 0);
   Vector3 longAverageWind = Vector3(0, 0, 0);
-  final oldVarioQueue = ListQueue<double>();
-  double numCurrentVarioValues = 50;
-  double num_old_vario_values = 50;
-  double opacity_correction_value = 0.9;
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
   bool _connected = false;
   Future<int> _mLineCounter = Future.value(0);
-  SettingsDialog settingsDialog = SettingsDialog();
 // Bluetooth related variables
   late DiscoveredDevice _ubiqueDevice;
 
@@ -117,10 +115,41 @@ class _MyHomePageState extends State<MyHomePage> {
   final Uuid characteristicUuid =
       Uuid.parse("0000abf2-0000-1000-8000-00805f9b34fb");
 
+  void resetSettings() {
+    settingsValues = {
+      "scalingFactor": 300,
+      "zeroFrequency": 250,
+      "sampleRate": 20000,
+      "circleDetectionMinTime": 5000,
+      "varioVolume": 0.5,
+      "targetMinRoll": 40,
+      "varioAverageTime": 30,
+      "logRawData":1,
+    };
+  }
+
+  void restoreSettings() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    for (String key in settingsValues.keys) {
+      if (prefs.containsKey(key)) {
+        settingsValues[key] = prefs.getDouble(key)!;
+      }
+    }
+  }
+
+  void saveSettings() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    for (String key in settingsValues.keys) {
+      if (settingsValues[key]! == -42) {}
+      prefs.setDouble(key, settingsValues[key]!);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-
+    resetSettings();
+    restoreSettings();
     SoundGenerator.init(sampleRate);
 
     SoundGenerator.onIsPlayingChanged.listen((value) {
@@ -515,28 +544,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           size: scalingFactor * 0.6,
                         ))),
               ]),
-
-              Slider(
-                value: numCurrentVarioValues,
-                max: 300,
-                onChanged: (double value) {
-                  setState(() {
-                    numCurrentVarioValues = value;
-                    varioVolume = value / 300;
-                  });
-                },
-              ),
-              Slider(
-                value: num_old_vario_values,
-                max: 300,
-                onChanged: (double value) {
-                  setState(() {
-                    num_old_vario_values = value;
-                    //oldVario = value / 15 - 5;
-                    //currentVario = value / 30 - 5;
-                  });
-                },
-              ),
               Text(
                 '$message',
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -647,6 +654,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         setState(() {
                           buttonPressed = 6;
                         });
+                        print(settingsValues);
                       },
                       icon: const Icon(
                         Icons.connecting_airports_rounded,
@@ -662,8 +670,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       )),
                   IconButton(
                       onPressed: () => showDialog(
-                          context: context,
-                          builder: (context) => settingsDialog),
+                                  context: context,
+                                  builder: (context) => SettingsDialog(
+                                      settingsValues: settingsValues))
+                              .then((value) {
+                            if (value != null) {
+                              settingsValues = value;
+                              saveSettings();
+                            }
+                          }),
                       icon: const Icon(
                         Icons.settings,
                         color: Colors.grey,
