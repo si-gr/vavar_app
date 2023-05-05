@@ -73,12 +73,6 @@ class _MyHomePageState extends State<MyHomePage> {
   VarioData varioData = VarioData();
   int buttonPressed = 0;
   Map<String, double> settingsValues = {};
-  final double scalingFactor = 300;
-  final double zeroFrequency = 250;
-  final int sampleRate = 20000;
-  int circleDetectionMinTime =
-      5000; // minimum time for turn is detected as circle in ms
-  double varioVolume = 0.5;
   bool isPlaying = false;
   bool colorSwitchVario = false;
   Color varioColor = Colors.white;
@@ -91,10 +85,13 @@ class _MyHomePageState extends State<MyHomePage> {
   String currentWarningString = "";
   double rollAngle = 0;
   double targetMinRoll = 40;
+  Color currentVarioColor = Colors.green;
 
   double currentVario = 0;
   double oldVario = 0;
   double averageVario = 0;
+  double wind1Rotation = 0;
+  double wind2Rotation = 0;
   Vector3 averageWind = Vector3(0, 0, 0);
   Vector3 longAverageWind = Vector3(0, 0, 0);
   // Some state management stuff
@@ -115,19 +112,31 @@ class _MyHomePageState extends State<MyHomePage> {
   final Uuid characteristicUuid =
       Uuid.parse("0000abf2-0000-1000-8000-00805f9b34fb");
 
+  /// Activate settings in settingsValues such that they take effect
+  void activateSettings() {
+    varioData.logRawData = settingsValues["logRawData"]! == 1;
+    varioData.logRawData = settingsValues["logProcessedData"]! == 1;
+    varioData.setVarioAverageTime((settingsValues["varioAverageTimeS"]! * 1000).round());
+    varioData.setWindEstimatorAverageTime((settingsValues["windAverageTimeS"]! * 1000).round());
+  }
+/// Reset settings to default values
   void resetSettings() {
     settingsValues = {
       "scalingFactor": 300,
       "zeroFrequency": 250,
-      "sampleRate": 20000,
+      "frequencyChange": 50,
+      "varioOnOffChangeFactor":15,
+      "varioSoundGeneratorSampleRate": 20000,
       "circleDetectionMinTime": 5000,
       "varioVolume": 0.5,
       "targetMinRoll": 40,
-      "varioAverageTime": 30,
-      "logRawData":1,
+      "varioAverageTimeS": 30,
+      "windAverageTimeS":5,
+      "logRawData": 1,
+      "logProcessedData": 1,
     };
   }
-
+/// Restore settings from shared preferences store
   void restoreSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     for (String key in settingsValues.keys) {
@@ -136,11 +145,15 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
   }
-
+/// Save settings map to shared preferences store
   void saveSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     for (String key in settingsValues.keys) {
-      if (settingsValues[key]! == -42) {}
+      if (settingsValues[key]! == -42) {
+        resetSettings();
+        saveSettings();
+        return;
+      }
       prefs.setDouble(key, settingsValues[key]!);
     }
   }
@@ -150,7 +163,8 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     resetSettings();
     restoreSettings();
-    SoundGenerator.init(sampleRate);
+    activateSettings();
+    SoundGenerator.init(settingsValues["varioSoundGeneratorSampleRate"]!.toInt());
 
     SoundGenerator.onIsPlayingChanged.listen((value) {
       setState(() {
@@ -219,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
       cycleTimeOn = min(
           max(
               800 -
-                  (log((currentVario.abs() * 15) + 1)) *
+                  (log((currentVario.abs() * settingsValues["varioOnOffChangeFactor"]!) + 1)) *
                       200 *
                       (currentVario > 0 ? 1 : -1),
               50),
@@ -230,7 +244,7 @@ class _MyHomePageState extends State<MyHomePage> {
           DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOff) {
         lastTime = DateTime.now().millisecondsSinceEpoch;
         varioOn = true;
-        SoundGenerator.setVolume(varioVolume);
+        SoundGenerator.setVolume(settingsValues["varioVolume"]!);
         if (colorSwitchVario) {
           setState(() {
             varioColor = Colors.white;
@@ -251,7 +265,7 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         }
       }
-      SoundGenerator.setFrequency(zeroFrequency + currentVario * 50);
+      SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! + currentVario * settingsValues["frequencyChange"]!);
     }
   }
 
@@ -260,7 +274,7 @@ class _MyHomePageState extends State<MyHomePage> {
     rollAngle = varioData.roll / (2 * pi) * 360;
     currentWarningString = "";
     if (rollAngle.abs() < targetMinRoll) {
-      if (varioData.yawRateOverLimitCounter > circleDetectionMinTime) {
+      if (varioData.yawRateOverLimitCounter > settingsValues["circleDetectionMinTime"]!) {
         currentWarningString =
             "${warningStrings[0]} ${(rollAngle).toStringAsFixed(0)}°";
       }
@@ -270,38 +284,45 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       currentWarningString += varioData.updateTime.toString();
 
-      if (buttonPressed == 0) {
+      if (buttonPressed == 0) { // GPS Button
         _displayText = [
           "lat ${varioData.latitude.toString()}",
           "lon ${varioData.longitude.toString()}",
           "alt ${varioData.height_gps.toString()}",
-          ""
+          "raw climb"
         ];
-        currentVario = varioData.gpsSpeed.z;
-        averageWind = varioData.xcsoarEkf.circleWind;
-      } else if (buttonPressed == 1) {
+        currentVario = varioData.rawClimbVario.getCurrentValue();
+        averageVario = varioData.rawClimbVario.getAverageValue();
+
+      } else if (buttonPressed == 1) {  // Airspeed Button
         _displayText = [
-          "spd ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
-          varioData.airspeedVector.x.toString(),
-          varioData.airspeedVector.y.toString(),
-          varioData.airspeedVector.z.toString()
+          "as simpleclimb ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
+          "airsx ${varioData.airspeedVector.x.toString()}",
+          "airsy ${varioData.airspeedVector.y.toString()}",
+          "airsz ${varioData.airspeedVector.z.toString()}"
         ];
-        currentVario = varioData.simple_climb_rate;
+        currentVario = varioData.simpleClimbVario.getCurrentValue();
+        averageVario = varioData.simpleClimbVario.getAverageValue();
       } else if (buttonPressed == 2) {
         _displayText = [
           "awx ${varioData.ardupilotWind.x.toString()}",
           "awy ${varioData.ardupilotWind.y.toString()}",
           "awz ${varioData.ardupilotWind.z.toString()}",
-          ""
+          "gps vario"
         ];
-      } else if (buttonPressed == 3) {
+        currentVario = varioData.gpsVario.getCurrentValue();
+        averageVario = varioData.gpsVario.getAverageValue();
+      } else if (buttonPressed == 3) {  // Cloud Button
         _displayText = [
-          "tot ${varioData.prev_raw_total_energy.toString()}",
-          "simp ${varioData.prev_simple_total_energy.toString()}",
+          "turn radius ${varioData.turnRadius.toString()}",
           "climb ${varioData.raw_climb_rate.toString()}",
-          "rd ${varioData.reading.toString()}"
+          "rd ${varioData.reading.toString()}",
+          "mywindcomp"
         ];
-        currentVario = varioData.raw_climb_rate;
+        currentVario = varioData.windCompVario.getCurrentValue();
+        averageVario = varioData.windCompVario.getAverageValue();
+        wind1Rotation = varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
+        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
       } else if (buttonPressed == 4) {
         _displayText = [
           "gx ${(varioData.gpsSpeed.x).toString()}",
@@ -309,17 +330,16 @@ class _MyHomePageState extends State<MyHomePage> {
           "gz ${(varioData.gpsSpeed.z).toString()}",
           "gps speed"
         ];
-        currentVario = varioData.gpsSpeed.z;
-        averageWind = varioData.xcsoarEkf.circleWind;
-      } else if (buttonPressed == 5) {
+        wind1Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
+        wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(0, 0));
+      } else if (buttonPressed == 5) {  // source icon
         _displayText = [
           "xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toString()}",
           "xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toString()}",
           "xwz ${(varioData.xcsoarEkf.getWind()[2]).toString()}",
           "xcsoar wind"
         ];
-        averageWind = Vector3(varioData.xcsoarEkf.airspeedWindResult[0],
-            varioData.xcsoarEkf.airspeedWindResult[1], 0);
+        wind2Rotation = longAverageWind.angleTo(Vector3(0, 0, 0));
       } else if (buttonPressed == 6) {
         _displayText = [
           "lwx ${(varioData.larusWind.x).toString()}",
@@ -327,8 +347,8 @@ class _MyHomePageState extends State<MyHomePage> {
           "larus wind",
           ""
         ];
-        currentVario = varioData.larusWind.z;
-        averageWind = varioData.larusWind;
+        wind1Rotation = varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
+        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
       } else if (buttonPressed == 7) {
         _displayText = [
           "vx ${(varioData.velned.x).toString()}",
@@ -336,7 +356,6 @@ class _MyHomePageState extends State<MyHomePage> {
           "vz ${(varioData.velned.z).toString()}",
           "velned speed"
         ];
-        currentVario = varioData.velned.z;
       }
     });
   }
@@ -492,8 +511,8 @@ class _MyHomePageState extends State<MyHomePage> {
               Stack(children: [
                 Image(
                   image: AssetImage("assets/vario_background.png"),
-                  width: scalingFactor,
-                  height: scalingFactor,
+                  width: settingsValues["scalingFactor"]!,
+                  height: settingsValues["scalingFactor"]!,
                 ),
                 //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
                 //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
@@ -505,8 +524,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     alignment: FractionalOffset.center,
                     child: Image(
                       image: const AssetImage("assets/vario_current.png"),
-                      width: scalingFactor,
-                      height: scalingFactor,
+                      width: settingsValues["scalingFactor"]!,
+                      height: settingsValues["scalingFactor"]!,
+                      color: currentVarioColor,
                     )),
                 Transform(
                     transform: Matrix4.rotationZ(
@@ -516,32 +536,32 @@ class _MyHomePageState extends State<MyHomePage> {
                     alignment: FractionalOffset.center,
                     child: Image(
                       image: const AssetImage("assets/vario_average1.png"),
-                      width: scalingFactor,
-                      height: scalingFactor,
+                      width: settingsValues["scalingFactor"]!,
+                      height: settingsValues["scalingFactor"]!,
+                      color: currentVarioColor,
                     )),
                 Transform(
-                    transform: Matrix4.rotationZ(
-                        ((averageWind.angleTo(varioData.airspeedVector)))),
+                    transform: Matrix4.rotationZ(wind1Rotation),
                     alignment: FractionalOffset.center,
                     child: SizedBox(
-                        width: scalingFactor,
-                        height: scalingFactor,
+                        width: settingsValues["scalingFactor"]!,
+                        height: settingsValues["scalingFactor"]!,
                         child: Icon(
                           Icons.keyboard_backspace_rounded,
                           color: Color.fromARGB(255, 162, 223, 255),
-                          size: scalingFactor * 0.6,
+                          size: settingsValues["scalingFactor"]! * 0.6,
                         ))),
                 Transform(
                     transform: Matrix4.rotationZ(
-                        ((longAverageWind.angleTo(Vector3(0, 0, 0))))),
+                        wind2Rotation),
                     alignment: FractionalOffset.center,
                     child: SizedBox(
-                        width: scalingFactor,
-                        height: scalingFactor,
+                        width: settingsValues["scalingFactor"]!,
+                        height: settingsValues["scalingFactor"]!,
                         child: Icon(
                           Icons.keyboard_backspace_rounded,
                           color: Color.fromARGB(255, 141, 141, 141),
-                          size: scalingFactor * 0.6,
+                          size: settingsValues["scalingFactor"]! * 0.6,
                         ))),
               ]),
               Text(
@@ -567,6 +587,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 0;
+                          currentVarioColor = Colors.green;
                         });
                       },
                       icon: const Icon(
@@ -578,6 +599,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 1;
+                          currentVarioColor = Colors.red;
                         });
                       },
                       icon: const Icon(
@@ -589,7 +611,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 3;
-
+                          currentVarioColor = Colors.blue;
                           SoundGenerator.play();
                         });
                       },
@@ -602,6 +624,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 4;
+                          currentVarioColor = Colors.brown;
                         });
                       },
                       icon: const Icon(
@@ -613,11 +636,12 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 7;
+                          currentVarioColor = Colors.deepPurple;
                         });
                       },
                       icon: const Icon(
                         Icons.computer,
-                        color: Colors.brown,
+                        color: Colors.deepPurple,
                         size: 40.0,
                       )),
                 ],
@@ -632,8 +656,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         });
                       },
                       icon: const Icon(
-                        Icons.airplane_ticket,
-                        color: Colors.yellow,
+                        Icons.source,
+                        color: Color.fromARGB(255, 158, 224, 255),
                         size: 40.0,
                       )),
                   IconButton(
@@ -677,6 +701,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             if (value != null) {
                               settingsValues = value;
                               saveSettings();
+    activateSettings();
                             }
                           }),
                       icon: const Icon(

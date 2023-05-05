@@ -18,9 +18,14 @@ class _SettingsDialogState extends State<SettingsDialog> {
         onChanged: (value) {
           setState(() {
             try {
+              if (value == "-") {
+                return;
+              }
               widget.settingsValues[key] = double.parse(value);
             } on FormatException {
-              widget.settingsValues[key] = -42;
+              widget.settingsValues[key] = -42.0;
+            } on TypeError {
+              // do nothing for example on - sign
             }
           });
         },
@@ -32,7 +37,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     });
 
     return AlertDialog(
-      title: Text('Settings'),
+      title: Text('Settings, -42 to restore def'),
       content: SizedBox(
         width: double.maxFinite,
         child: 

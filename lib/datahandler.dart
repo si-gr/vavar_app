@@ -1,12 +1,16 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:ui';
+import 'package:ble_larus_android/tecalculator.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:ble_larus_android/vario.dart';
+import 'WindEstimator.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+
 
 class VarioData {
   double airspeed = double.nan;
@@ -36,11 +40,16 @@ class VarioData {
   int turnStartTime = 0; // time in ms of start of turn
   int yawRateOverLimitCounter = 0; // counter for how many ms
 
-  double prev_raw_total_energy = double.nan;
-  double prev_simple_total_energy = double.nan;
   double raw_climb_rate = double.nan;
   double simple_climb_rate = double.nan;
   double reading = double.nan;
+
+  Vario rawClimbVario = Vario(30000);
+  Vario simpleClimbVario = Vario(30000);
+  Vario gpsVario = Vario(30000);
+  Vario windCompVario = Vario(30000);
+  WindEstimator windEstimator = WindEstimator(5000);
+  TECalculator teCalculator = TECalculator();
 
   Vector3 gpsSpeed = Vector3(0, 0, 0);
 
@@ -58,6 +67,19 @@ class VarioData {
   String logFilePath = "";
   String tmpWriteBuffer = "";
   var dataStreamController = StreamController<String>();
+  bool logRawData = true;
+  bool logProcessedData = true;
+
+void setVarioAverageTime(int timeMs){
+  rawClimbVario.setAveragingTime(timeMs);
+  simpleClimbVario.setAveragingTime(timeMs);
+  gpsVario.setAveragingTime(timeMs);
+  windCompVario.setAveragingTime(timeMs);
+}
+
+void setWindEstimatorAverageTime(int timeMs){
+  windEstimator.setAveragingTime(timeMs);
+}
 
   Future<void> writeStreamedData(Stream<String> dataStream) async {
     IOSink logFileSink = File(logFilePath).openWrite(mode: FileMode.append);
@@ -69,20 +91,20 @@ class VarioData {
 
 // usually instantly returns
   Future<void> writeData(String data) async {
-    if (logFilePath == "") {
-      logFilePath = "-1";
-      logFilePath = path.join((await getExternalStorageDirectory())!.path,
-          'log${appStartTime.toString()}.csv');
-      //print(logFilePath);
-      File logFile = File(logFilePath);
-      logFile.createSync(recursive: true);
-      writeStreamedData(dataStreamController.stream);
+    if (logProcessedData) {
+      if (logFilePath == "") {
+        logFilePath = "-1";
+        logFilePath = path.join((await getExternalStorageDirectory())!.path,
+            'log${appStartTime.toString()}.csv');
+        //print(logFilePath);
+        File logFile = File(logFilePath);
+        logFile.createSync(recursive: true);
+        writeStreamedData(dataStreamController.stream);
+      }
+      if (logFilePath.length > 3) {
+        dataStreamController.add(data);
+      }
     }
-    if (logFilePath.length > 3) {
-      dataStreamController.add(data);
-    }
-    //File logFile = File(logFilePath);
-    //await logFile.writeAsString('${DateTime.now().millisecondsSinceEpoch},$data\n', mode: FileMode.append);
   }
 
   void calculateYawUpdate(newYaw) {
@@ -128,8 +150,9 @@ class VarioData {
             byteData.getFloat32(8, Endian.little),
             byteData.getFloat32(12, Endian.little));
         roll = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
+
         writeData(
-            '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}~$logString');
+            '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}~${logRawData ? logString : ""}');
         break;
       case 1:
         ardupilotWind = Vector3(
@@ -139,7 +162,7 @@ class VarioData {
         height_gps = byteData.getInt32(12, Endian.little) / 100.0;
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         writeData(
-            '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~$logString');
+            '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~${logRawData ? logString : ""}');
         break;
       case 2:
         ground_course = byteData.getFloat32(0, Endian.little);
@@ -148,18 +171,23 @@ class VarioData {
         ground_speed = byteData.getFloat32(12, Endian.little);
         double newYaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         calculateYawUpdate(newYaw);
+        windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
+        teCalculator.setNewTE(airspeed - windEstimator.lastWindEstimate.x, height_gps);
+        windCompVario.setNewValue(teCalculator.getVario());
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)}~$logString');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)},${windEstimator.groundSpeedAngleChange.toString()},${windEstimator.yawChange.toString()},${windEstimator.lastWindEstimate.toString()}~${logRawData ? logString : ""}');
         break;
       case 3:
         turnRadius = byteData.getFloat32(0, Endian.little);
         ekfGroundSpeed = Vector2(byteData.getInt16(4, Endian.little) / 500.0,
             byteData.getInt16(6, Endian.little) / 500.0);
-        raw_climb_rate = byteData.getFloat32(8, Endian.little);
+        raw_climb_rate = byteData.getFloat32(8, Endian.little); // wind compensated by larus
         simple_climb_rate = byteData.getFloat32(12, Endian.little);
         reading = byteData.getInt16(16, Endian.little) / 100.0;
+        rawClimbVario.setNewValue(raw_climb_rate);
+        simpleClimbVario.setNewValue(simple_climb_rate);
         writeData(
-            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~$logString');
+            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~${logRawData ? logString : ""}');
         break;
       case 4:
         gpsSpeed = Vector3(
@@ -171,8 +199,9 @@ class VarioData {
             byteData.getInt16(8, Endian.little) / 500.0,
             byteData.getInt16(10, Endian.little) / 500.0);
         calculateGPSSpeedUpdate();
+        gpsVario.setNewValue(gpsSpeed.z);
         writeData(
-            '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~$logString');
+            '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~${logRawData ? logString : ""}');
         break;
       case 5:
         acceleration = Vector3(
@@ -185,7 +214,7 @@ class VarioData {
         presTemp = byteData.getFloat32(12, Endian.little);
         gpsStatus = byteData.getInt16(16, Endian.little);
         writeData(
-            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${presTemp.toStringAsFixed(4)},${gpsStatus.toString()}~$logString');
+            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${presTemp.toStringAsFixed(4)},${gpsStatus.toString()}~${logRawData ? logString : ""}');
         break;
       default:
         break;
