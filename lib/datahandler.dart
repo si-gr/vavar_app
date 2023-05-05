@@ -15,11 +15,18 @@ class VarioData {
   double roll = double.nan;
 
   Vector3 ardupilotWind = Vector3(0, 0, 0);
+  Vector3 acceleration = Vector3(0, 0, 0);
   double height_gps = double.nan;
   double pitch = double.nan;
 
   int latitude = 0;
   int longitude = 0;
+  double batteryVoltage = double.nan;
+  int gpsTime = 0;
+  double presTemp = double.nan;
+  int gpsStatus = -5;
+  double turnRadius = double.nan;
+  Vector2 ekfGroundSpeed = Vector2(0, 0);
   double ground_speed = double.nan;
   double ground_course = double.nan;
   double yaw = double.nan;
@@ -129,7 +136,7 @@ class VarioData {
             byteData.getFloat32(0, Endian.little),
             byteData.getFloat32(4, Endian.little),
             byteData.getFloat32(8, Endian.little));
-        height_gps = byteData.getFloat32(12, Endian.little);
+        height_gps = byteData.getInt32(12, Endian.little) / 100.0;
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         writeData(
             '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~$logString');
@@ -145,13 +152,14 @@ class VarioData {
             '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)}~$logString');
         break;
       case 3:
-        prev_raw_total_energy = byteData.getFloat32(0, Endian.little);
-        prev_simple_total_energy = byteData.getFloat32(4, Endian.little);
+        turnRadius = byteData.getFloat32(0, Endian.little);
+        ekfGroundSpeed = Vector2(byteData.getInt16(4, Endian.little) / 500.0,
+            byteData.getInt16(6, Endian.little) / 500.0);
         raw_climb_rate = byteData.getFloat32(8, Endian.little);
         simple_climb_rate = byteData.getFloat32(12, Endian.little);
         reading = byteData.getInt16(16, Endian.little) / 100.0;
         writeData(
-            '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~$logString');
+            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~$logString');
         break;
       case 4:
         gpsSpeed = Vector3(
@@ -165,6 +173,19 @@ class VarioData {
         calculateGPSSpeedUpdate();
         writeData(
             '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~$logString');
+        break;
+      case 5:
+        acceleration = Vector3(
+            byteData.getInt16(0, Endian.little) / 1000.0,
+            byteData.getInt16(2, Endian.little) / 1000.0,
+            byteData.getInt16(4, Endian.little) / 1000.0);
+
+        batteryVoltage = byteData.getInt16(6, Endian.little) / 100.0;
+        gpsTime = byteData.getUint32(8, Endian.little);
+        presTemp = byteData.getFloat32(12, Endian.little);
+        gpsStatus = byteData.getInt16(16, Endian.little);
+        writeData(
+            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${presTemp.toStringAsFixed(4)},${gpsStatus.toString()}~$logString');
         break;
       default:
         break;

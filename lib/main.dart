@@ -257,6 +257,7 @@ class _MyHomePageState extends State<MyHomePage> {
           varioData.airspeedVector.y.toString(),
           varioData.airspeedVector.z.toString()
         ];
+        currentVario = varioData.simple_climb_rate;
       } else if (buttonPressed == 2) {
         _displayText = [
           "awx ${varioData.ardupilotWind.x.toString()}",
@@ -297,6 +298,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "larus wind",
           ""
         ];
+        currentVario = varioData.larusWind.z;
         averageWind = varioData.larusWind;
       } else if (buttonPressed == 7) {
         _displayText = [
@@ -305,6 +307,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "vz ${(varioData.velned.z).toString()}",
           "velned speed"
         ];
+        currentVario = varioData.velned.z;
       }
     });
   }

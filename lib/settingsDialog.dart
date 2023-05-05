@@ -16,6 +16,16 @@ class _SettingsDialogState extends State<SettingsDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          Row(
+            children: <Widget>[
+              TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Enter a search term',
+                ),
+              ),
+            ],
+          ),
           Text('Set the value'),
           Slider(
             value: widget.val,

@@ -106,15 +106,15 @@ class DataRestream {
           break;
         case '3':
           // '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}');
-          varioData.prev_raw_total_energy =
-              double.parse(stripNonNumeric(splittedLine[2]));
-          varioData.prev_simple_total_energy =
-              double.parse(stripNonNumeric(splittedLine[3]));
+          varioData.turnRadius = double.parse(stripNonNumeric(splittedLine[2]));
+          varioData.ekfGroundSpeed = Vector2(
+              double.parse(stripNonNumeric(splittedLine[3])),
+              double.parse(stripNonNumeric(splittedLine[4])));
           varioData.raw_climb_rate =
-              double.parse(stripNonNumeric(splittedLine[4]));
-          varioData.simple_climb_rate =
               double.parse(stripNonNumeric(splittedLine[5]));
-          varioData.reading = double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.simple_climb_rate =
+              double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.reading = double.parse(stripNonNumeric(splittedLine[7]));
           break;
         case '4':
           // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
@@ -127,6 +127,19 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[6])),
               double.parse(stripNonNumeric(splittedLine[7])));
           varioData.calculateGPSSpeedUpdate();
+          break;
+        case '5':
+          // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
+          varioData.acceleration = Vector3(
+              double.parse(stripNonNumeric(splittedLine[2])),
+              double.parse(stripNonNumeric(splittedLine[3])),
+              double.parse(stripNonNumeric(splittedLine[4])));
+          varioData.batteryVoltage =
+              double.parse(stripNonNumeric(splittedLine[5]));
+          varioData.gpsTime = int.parse(stripNonNumeric(splittedLine[6]));
+          varioData.presTemp = double.parse(stripNonNumeric(splittedLine[7]));
+          varioData.gpsStatus = int.parse(stripNonNumeric(splittedLine[8]));
+
           break;
         default:
           break;
