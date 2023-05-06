@@ -149,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void saveSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     for (String key in settingsValues.keys) {
-      if (settingsValues[key]! == -42) {
+      if (settingsValues[key] == -42) {
         resetSettings();
         saveSettings();
         return;

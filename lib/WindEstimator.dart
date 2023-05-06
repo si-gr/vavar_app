@@ -6,12 +6,9 @@ import 'package:vector_math/vector_math.dart';
 
 class WindEstimator {
   int lastWindEstimateTime = 0;
-  double lastYaw = 0;
-  double lastAirspeed = 0;
-  double yawChange = 0;
-  double groundSpeedAngleChange = 0;
   Vector2 lastWindEstimate = Vector2(0, 0);
   Vector2 lastgroundSpeed = Vector2(0, 0);
+  Vector2 lastAirspeed = Vector2(0, 0);
 
   Map<int, Vector2> _windEstimates = {};
   int _averageTimeMs = 30000;
@@ -44,29 +41,21 @@ class WindEstimator {
   }
 
   void estimateWind(double yaw, double airspeed, Vector2 groundspeedVector) {
-    if (lastYaw == 0 && lastAirspeed == 0) {
-      lastYaw = yaw;
-      lastAirspeed = airspeed;
+    if (lastAirspeed.x == 0) {
+      lastAirspeed = Vector2(cos(yaw) * airspeed, sin(yaw) * airspeed);
       lastgroundSpeed = groundspeedVector;
       lastWindEstimateTime = DateTime.now().millisecondsSinceEpoch;
       return;
     }
-    // yaw * airspeed - lastYaw * lastAirspeed = perceivedDifference
+    // lastairspeedvec - currentAirspeedvec = perceivedDifference
     // lastGroundSpeed - groundSpeed = realDifference
     // perceivedDifference - realDifference = wind
-    double groundSpeedAngleChange =
-        lastgroundSpeed.angleToSigned(groundspeedVector);
-    double groundSpeedDifference = sqrt(lastgroundSpeed.dot(lastgroundSpeed)) -
-        sqrt(groundspeedVector.dot(groundspeedVector));
-    Vector2 groundVectorChange = Vector2(
-        groundSpeedDifference * sin(groundSpeedAngleChange),
-        groundSpeedDifference * cos(groundSpeedAngleChange));
-    double airspeedChange = lastAirspeed - airspeed;
-    yawChange = lastYaw - yaw;
-    yawChange = (yawChange + pi) % (2 * pi) - pi;
-    Vector2 perceivedVectorChange = Vector2(
-        airspeedChange * sin(yawChange), airspeedChange * cos(yawChange));
-    lastWindEstimate = perceivedVectorChange - groundVectorChange;
+    Vector2 groundSpeedChange = lastgroundSpeed - groundspeedVector;
+    Vector2 currentAirspeed = Vector2(cos(yaw) * airspeed, sin(yaw) * airspeed);
+    Vector2 airspeedChange = lastAirspeed - currentAirspeed;
+    lastAirspeed = currentAirspeed;
+    lastgroundSpeed = groundspeedVector;
+    lastWindEstimate = airspeedChange - groundSpeedChange;
     int now = DateTime.now().millisecondsSinceEpoch;
     lastWindEstimate =
         lastWindEstimate * (now - lastWindEstimateTime).toDouble() / 1000;

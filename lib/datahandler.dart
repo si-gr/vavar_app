@@ -175,7 +175,7 @@ void setWindEstimatorAverageTime(int timeMs){
         teCalculator.setNewTE(airspeed - windEstimator.lastWindEstimate.x, height_gps);
         windCompVario.setNewValue(teCalculator.getVario());
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)},${windEstimator.groundSpeedAngleChange.toString()},${windEstimator.yawChange.toString()},${windEstimator.lastWindEstimate.toString()}~${logRawData ? logString : ""}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)},${windEstimator.lastWindEstimate.toString()}~${logRawData ? logString : ""}');
         break;
       case 3:
         turnRadius = byteData.getFloat32(0, Endian.little);
