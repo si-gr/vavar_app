@@ -118,6 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
     varioData.logRawData = settingsValues["logProcessedData"]! == 1;
     varioData.setVarioAverageTime((settingsValues["varioAverageTimeS"]! * 1000).round());
     varioData.setWindEstimatorAverageTime((settingsValues["windAverageTimeS"]! * 1000).round());
+    varioData.windEstimator.setFilterCovariance(settingsValues["windFilterCovariance"]!);
   }
 /// Reset settings to default values
   void resetSettings() {
@@ -134,6 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "windAverageTimeS":5,
       "logRawData": 1,
       "logProcessedData": 1,
+      "windFilterCovariance": 0.2,
     };
   }
 /// Restore settings from shared preferences store

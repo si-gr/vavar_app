@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:ble_larus_android/kalman2d.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Estimates short term wind changes based on yaw changes, airspeed changes and groundspeed changes
@@ -9,11 +10,17 @@ class WindEstimator {
   Vector2 lastWindEstimate = Vector2(0, 0);
   Vector2 lastgroundSpeed = Vector2(0, 0);
   Vector2 lastAirspeed = Vector2(0, 0);
-
+  KalmanFilter _windKalman = KalmanFilter(1, 1, 0.2, 0.2);
+  double _filterCovariance = 0.2;
   Map<int, Vector2> _windEstimates = {};
   int _averageTimeMs = 30000;
 
-  WindEstimator(this._averageTimeMs);
+  WindEstimator(this._averageTimeMs, this._filterCovariance):_windKalman = KalmanFilter(1, 1, _filterCovariance, _filterCovariance);
+
+  void setFilterCovariance(double covariance) {
+    _filterCovariance = covariance;
+    _windKalman = KalmanFilter(1, 1, _filterCovariance, _filterCovariance);
+  }
 
   void addWindToAverage(windEstimate) {
     _windEstimates
@@ -29,7 +36,7 @@ class WindEstimator {
   Vector2 getAverageValue() {
     _windEstimates.removeWhere((key, value) =>
         key < DateTime.now().millisecondsSinceEpoch - _averageTimeMs);
-    if (_windEstimates.length > 0) {
+    if (_windEstimates.isNotEmpty) {
       Vector2 sum = Vector2(0, 0);
       _windEstimates.forEach((key, value) {
         sum += value;

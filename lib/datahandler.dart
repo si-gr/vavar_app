@@ -11,7 +11,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
-
 class VarioData {
   double airspeed = double.nan;
 
@@ -70,16 +69,16 @@ class VarioData {
   bool logRawData = true;
   bool logProcessedData = true;
 
-void setVarioAverageTime(int timeMs){
-  rawClimbVario.setAveragingTime(timeMs);
-  simpleClimbVario.setAveragingTime(timeMs);
-  gpsVario.setAveragingTime(timeMs);
-  windCompVario.setAveragingTime(timeMs);
-}
+  void setVarioAverageTime(int timeMs) {
+    rawClimbVario.setAveragingTime(timeMs);
+    simpleClimbVario.setAveragingTime(timeMs);
+    gpsVario.setAveragingTime(timeMs);
+    windCompVario.setAveragingTime(timeMs);
+  }
 
-void setWindEstimatorAverageTime(int timeMs){
-  windEstimator.setAveragingTime(timeMs);
-}
+  void setWindEstimatorAverageTime(int timeMs) {
+    windEstimator.setAveragingTime(timeMs);
+  }
 
   Future<void> writeStreamedData(Stream<String> dataStream) async {
     IOSink logFileSink = File(logFilePath).openWrite(mode: FileMode.append);
@@ -172,7 +171,8 @@ void setWindEstimatorAverageTime(int timeMs){
         double newYaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         calculateYawUpdate(newYaw);
         windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
-        teCalculator.setNewTE(airspeed - windEstimator.lastWindEstimate.x, height_gps);
+        teCalculator.setNewTE(
+            airspeed - windEstimator.lastWindEstimate.x, height_gps);
         windCompVario.setNewValue(teCalculator.getVario());
         writeData(
             '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)},${windEstimator.lastWindEstimate.toString()}~${logRawData ? logString : ""}');
@@ -181,7 +181,8 @@ void setWindEstimatorAverageTime(int timeMs){
         turnRadius = byteData.getFloat32(0, Endian.little);
         ekfGroundSpeed = Vector2(byteData.getInt16(4, Endian.little) / 500.0,
             byteData.getInt16(6, Endian.little) / 500.0);
-        raw_climb_rate = byteData.getFloat32(8, Endian.little); // wind compensated by larus
+        raw_climb_rate =
+            byteData.getFloat32(8, Endian.little); // wind compensated by larus
         simple_climb_rate = byteData.getFloat32(12, Endian.little);
         reading = byteData.getInt16(16, Endian.little) / 100.0;
         rawClimbVario.setNewValue(raw_climb_rate);
