@@ -26,17 +26,17 @@ class WindEstimator {
     _averageTimeMs = timeMs;
   }
 
-  double getAverageValue() {
+  Vector2 getAverageValue() {
     _windEstimates.removeWhere((key, value) =>
         key < DateTime.now().millisecondsSinceEpoch - _averageTimeMs);
     if (_windEstimates.length > 0) {
-      double sum = 0;
+      Vector2 sum = Vector2(0, 0);
       _windEstimates.forEach((key, value) {
-        sum += sqrt(value.dot(value));
+        sum += value;
       });
-      return sum / _windEstimates.length;
+      return sum / _windEstimates.length.toDouble();
     } else {
-      return 0;
+      return Vector2(0, 0);
     }
   }
 

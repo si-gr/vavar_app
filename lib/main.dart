@@ -322,7 +322,7 @@ class _MyHomePageState extends State<MyHomePage> {
         currentVario = varioData.windCompVario.getCurrentValue();
         averageVario = varioData.windCompVario.getAverageValue();
         wind1Rotation = varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
-        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
+        wind2Rotation = varioData.windEstimator.getAverageValue().angleTo(Vector2(0, 0));
       } else if (buttonPressed == 4) {
         _displayText = [
           "gx ${(varioData.gpsSpeed.x).toString()}",
