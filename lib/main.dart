@@ -324,7 +324,7 @@ class _MyHomePageState extends State<MyHomePage> {
         currentVario = varioData.windCompVario.getCurrentValue();
         averageVario = varioData.windCompVario.getAverageValue();
         wind1Rotation = varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
-        wind2Rotation = varioData.windEstimator.getAverageValue().angleTo(Vector2(0, 0));
+        wind2Rotation = varioData.windEstimator.getKalmanWind().angleTo(Vector2(0, 0));
       } else if (buttonPressed == 4) {
         _displayText = [
           "gx ${(varioData.gpsSpeed.x).toString()}",
@@ -511,6 +511,11 @@ class _MyHomePageState extends State<MyHomePage> {
             children: <Widget>[
               //Stack(children: old_vario_widgets.toList(growable: false),),
               Stack(children: [
+                Text(
+                '${varioData.batteryVoltage} V',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.left,
+              ),
                 Image(
                   image: AssetImage("assets/vario_background.png"),
                   width: settingsValues["scalingFactor"]!,

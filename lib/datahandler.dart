@@ -47,7 +47,7 @@ class VarioData {
   Vario simpleClimbVario = Vario(30000);
   Vario gpsVario = Vario(30000);
   Vario windCompVario = Vario(30000);
-  WindEstimator windEstimator = WindEstimator(5000);
+  WindEstimator windEstimator = WindEstimator(5000, 0.2);
   TECalculator teCalculator = TECalculator();
 
   Vector3 gpsSpeed = Vector3(0, 0, 0);

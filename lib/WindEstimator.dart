@@ -33,6 +33,10 @@ class WindEstimator {
     _averageTimeMs = timeMs;
   }
 
+  Vector2 getKalmanWind(){
+    return _windKalman.x_.xy;
+  }
+
   Vector2 getAverageValue() {
     _windEstimates.removeWhere((key, value) =>
         key < DateTime.now().millisecondsSinceEpoch - _averageTimeMs);
@@ -64,6 +68,7 @@ class WindEstimator {
     lastgroundSpeed = groundspeedVector;
     lastWindEstimate = airspeedChange - groundSpeedChange;
     int now = DateTime.now().millisecondsSinceEpoch;
+    _windKalman.Update(lastWindEstimate, now, true);
     lastWindEstimate =
         lastWindEstimate * (now - lastWindEstimateTime).toDouble() / 1000;
     lastWindEstimateTime = DateTime.now().millisecondsSinceEpoch;

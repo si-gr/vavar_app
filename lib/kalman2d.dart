@@ -43,7 +43,7 @@ class KalmanFilter {
 
   void Predict_() {
     x_ = F_ * x_;
-    P_ = F_ * P_ * F_.transpose() + Q_;
+    P_ = F_ * P_ * F_.transposed() + Q_;
   }
 
   void Update(Vector2 z, int timestamp, bool bearing) {
