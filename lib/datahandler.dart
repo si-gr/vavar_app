@@ -108,8 +108,8 @@ class VarioData {
 
   void calculateYawUpdate(newYaw) {
     larusWind = gpsSpeed - airspeedVector;
-    yawRate = (yaw - newYaw) /
-        ((DateTime.now().millisecondsSinceEpoch - lastYawUpdate) / 1000.0);
+    yawRate = ((yaw - newYaw) /
+        ((DateTime.now().millisecondsSinceEpoch - lastYawUpdate) / 1000.0)) * 0.1 + yawRate * 0.9; // average filter
     if (yawRate.abs() < yawRateTurn) {
       yawRateOverLimitCounter = 0;
       turnStartTime = DateTime.now().millisecondsSinceEpoch;

@@ -33,6 +33,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -44,6 +45,10 @@ class MyApp extends StatelessWidget {
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
         primarySwatch: Colors.blue,
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.white, fontSize: 22),
+
+        ),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -72,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
   VarioData varioData = VarioData();
   int buttonPressed = 0;
+  int windButtonPressed = 0;
   Map<String, double> settingsValues = {};
   bool isPlaying = false;
   bool colorSwitchVario = false;
@@ -92,8 +98,6 @@ class _MyHomePageState extends State<MyHomePage> {
   double averageVario = 0;
   double wind1Rotation = 0;
   double wind2Rotation = 0;
-  Vector3 averageWind = Vector3(0, 0, 0);
-  Vector3 longAverageWind = Vector3(0, 0, 0);
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
@@ -116,29 +120,34 @@ class _MyHomePageState extends State<MyHomePage> {
   void activateSettings() {
     varioData.logRawData = settingsValues["logRawData"]! == 1;
     varioData.logRawData = settingsValues["logProcessedData"]! == 1;
-    varioData.setVarioAverageTime((settingsValues["varioAverageTimeS"]! * 1000).round());
-    varioData.setWindEstimatorAverageTime((settingsValues["windAverageTimeS"]! * 1000).round());
-    varioData.windEstimator.setFilterCovariance(settingsValues["windFilterCovariance"]!);
+    varioData.setVarioAverageTime(
+        (settingsValues["varioAverageTimeS"]! * 1000).round());
+    varioData.setWindEstimatorAverageTime(
+        (settingsValues["windAverageTimeS"]! * 1000).round());
+    varioData.windEstimator
+        .setFilterCovariance(settingsValues["windFilterCovariance"]!);
   }
-/// Reset settings to default values
+
+  /// Reset settings to default values
   void resetSettings() {
     settingsValues = {
       "scalingFactor": 300,
       "zeroFrequency": 250,
       "frequencyChange": 50,
-      "varioOnOffChangeFactor":15,
+      "varioOnOffChangeFactor": 15,
       "varioSoundGeneratorSampleRate": 20000,
       "circleDetectionMinTime": 5000,
       "varioVolume": 0.5,
       "targetMinRoll": 40,
       "varioAverageTimeS": 30,
-      "windAverageTimeS":5,
+      "windAverageTimeS": 5,
       "logRawData": 1,
       "logProcessedData": 1,
       "windFilterCovariance": 0.2,
     };
   }
-/// Restore settings from shared preferences store
+
+  /// Restore settings from shared preferences store
   void restoreSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     for (String key in settingsValues.keys) {
@@ -147,7 +156,8 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
   }
-/// Save settings map to shared preferences store
+
+  /// Save settings map to shared preferences store
   void saveSettings() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     for (String key in settingsValues.keys) {
@@ -166,7 +176,8 @@ class _MyHomePageState extends State<MyHomePage> {
     resetSettings();
     restoreSettings();
     activateSettings();
-    SoundGenerator.init(settingsValues["varioSoundGeneratorSampleRate"]!.toInt());
+    SoundGenerator.init(
+        settingsValues["varioSoundGeneratorSampleRate"]!.toInt());
 
     SoundGenerator.onIsPlayingChanged.listen((value) {
       setState(() {
@@ -235,7 +246,9 @@ class _MyHomePageState extends State<MyHomePage> {
       cycleTimeOn = min(
           max(
               800 -
-                  (log((currentVario.abs() * settingsValues["varioOnOffChangeFactor"]!) + 1)) *
+                  (log((currentVario.abs() *
+                              settingsValues["varioOnOffChangeFactor"]!) +
+                          1)) *
                       200 *
                       (currentVario > 0 ? 1 : -1),
               50),
@@ -267,7 +280,8 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         }
       }
-      SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! + currentVario * settingsValues["frequencyChange"]!);
+      SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! +
+          currentVario * settingsValues["frequencyChange"]!);
     }
   }
 
@@ -276,17 +290,18 @@ class _MyHomePageState extends State<MyHomePage> {
     rollAngle = varioData.roll / (2 * pi) * 360;
     currentWarningString = "";
     if (rollAngle.abs() < targetMinRoll) {
-      if (varioData.yawRateOverLimitCounter > settingsValues["circleDetectionMinTime"]!) {
+      if (varioData.yawRateOverLimitCounter >
+          settingsValues["circleDetectionMinTime"]!) {
         currentWarningString =
             "${warningStrings[0]} ${(rollAngle).toStringAsFixed(0)}°";
       }
     }
-    longAverageWind = longAverageWind * 0.9 + averageWind * 0.1;
 
     setState(() {
       currentWarningString += varioData.updateTime.toString();
 
-      if (buttonPressed == 0) { // GPS Button
+      if (buttonPressed == 0) {
+        // GPS Button
         _displayText = [
           "lat ${varioData.latitude.toString()}",
           "lon ${varioData.longitude.toString()}",
@@ -295,69 +310,56 @@ class _MyHomePageState extends State<MyHomePage> {
         ];
         currentVario = varioData.rawClimbVario.getCurrentValue();
         averageVario = varioData.rawClimbVario.getAverageValue();
-
-      } else if (buttonPressed == 1) {  // Airspeed Button
+      } else if (buttonPressed == 1) {
+        // Airspeed Button
         _displayText = [
           "as simpleclimb ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
-          "airsx ${varioData.airspeedVector.x.toString()}",
-          "airsy ${varioData.airspeedVector.y.toString()}",
-          "airsz ${varioData.airspeedVector.z.toString()}"
+          "airsx ${varioData.airspeedVector.x.toStringAsFixed(1)} lwx ${varioData.larusWind.x.toStringAsFixed(1)}",
+          "airsy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
+          "airsz ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
         ];
         currentVario = varioData.simpleClimbVario.getCurrentValue();
         averageVario = varioData.simpleClimbVario.getAverageValue();
       } else if (buttonPressed == 2) {
         _displayText = [
-          "awx ${varioData.ardupilotWind.x.toString()}",
-          "awy ${varioData.ardupilotWind.y.toString()}",
-          "awz ${varioData.ardupilotWind.z.toString()}",
+          "awx ${varioData.ardupilotWind.x.toStringAsFixed(1)}",
+          "awy ${varioData.ardupilotWind.y.toStringAsFixed(1)}",
+          "awz ${varioData.ardupilotWind.z.toStringAsFixed(1)}",
           "gps vario"
         ];
         currentVario = varioData.gpsVario.getCurrentValue();
         averageVario = varioData.gpsVario.getAverageValue();
-      } else if (buttonPressed == 3) {  // Cloud Button
+      } else if (buttonPressed == 3) {
+        // Cloud Button
         _displayText = [
-          "turn radius ${varioData.turnRadius.toString()}",
-          "climb ${varioData.raw_climb_rate.toString()}",
-          "rd ${varioData.reading.toString()}",
+          "turn radius ${varioData.turnRadius.toStringAsFixed(1)} vx ${(varioData.velned.x).toStringAsFixed(1)}",
+          "climb ${varioData.raw_climb_rate.toStringAsFixed(1)} vy ${(varioData.velned.y).toStringAsFixed(1)}",
+          "rd ${varioData.reading.toString()} vz ${(varioData.velned.z).toStringAsFixed(1)}",
           "mywindcomp"
         ];
         currentVario = varioData.windCompVario.getCurrentValue();
         averageVario = varioData.windCompVario.getAverageValue();
-        wind1Rotation = varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
-        wind2Rotation = varioData.windEstimator.getKalmanWind().angleTo(Vector2(0, 0));
       } else if (buttonPressed == 4) {
         _displayText = [
-          "gx ${(varioData.gpsSpeed.x).toString()}",
-          "gy ${(varioData.gpsSpeed.y).toString()}",
-          "gz ${(varioData.gpsSpeed.z).toString()}",
+          "gx ${(varioData.gpsSpeed.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
+          "gy ${(varioData.gpsSpeed.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
+          "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
           "gps speed"
         ];
+      }
+
+
+      if (windButtonPressed == 0) {
+        wind1Rotation = Vector2(varioData.xcsoarEkf.getWind()[0],
+                varioData.xcsoarEkf.getWind()[1])
+            .angleTo(Vector2(0, 0));
+      } else if (windButtonPressed == 1) {
+        wind1Rotation =
+            varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
+        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
+      } else if (windButtonPressed == 2) {
         wind1Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
         wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(0, 0));
-      } else if (buttonPressed == 5) {  // source icon
-        _displayText = [
-          "xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toString()}",
-          "xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toString()}",
-          "xwz ${(varioData.xcsoarEkf.getWind()[2]).toString()}",
-          "xcsoar wind"
-        ];
-        wind2Rotation = longAverageWind.angleTo(Vector3(0, 0, 0));
-      } else if (buttonPressed == 6) {
-        _displayText = [
-          "lwx ${(varioData.larusWind.x).toString()}",
-          "lwy ${(varioData.larusWind.y).toString()}",
-          "larus wind",
-          ""
-        ];
-        wind1Rotation = varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
-        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
-      } else if (buttonPressed == 7) {
-        _displayText = [
-          "vx ${(varioData.velned.x).toString()}",
-          "vy ${(varioData.velned.y).toString()}",
-          "vz ${(varioData.velned.z).toString()}",
-          "velned speed"
-        ];
       }
     });
   }
@@ -508,69 +510,100 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
+
             children: <Widget>[
-              //Stack(children: old_vario_widgets.toList(growable: false),),
-              Stack(children: [
-                Text(
-                '${varioData.batteryVoltage} V',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.left,
-              ),
-                Image(
-                  image: AssetImage("assets/vario_background.png"),
-                  width: settingsValues["scalingFactor"]!,
-                  height: settingsValues["scalingFactor"]!,
-                ),
-                //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
-                //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
-                Transform(
-                    transform: Matrix4.rotationZ(
-                        (((currentVario.isFinite ? currentVario : 0.0) * 20) /
-                                360) *
-                            (2 * pi)),
-                    alignment: FractionalOffset.center,
-                    child: Image(
-                      image: const AssetImage("assets/vario_current.png"),
+              Padding(padding: EdgeInsets.only(top: 20),
+              child:
+              Stack(
+                  children: [
+                    
+
+                    Image(
+                      image: AssetImage("assets/vario_background.png"),
                       width: settingsValues["scalingFactor"]!,
                       height: settingsValues["scalingFactor"]!,
-                      color: currentVarioColor,
-                    )),
-                Transform(
-                    transform: Matrix4.rotationZ(
-                        (((averageVario.isFinite ? averageVario : 0.0) * 20) /
-                                360) *
-                            (2 * pi)),
-                    alignment: FractionalOffset.center,
-                    child: Image(
-                      image: const AssetImage("assets/vario_average1.png"),
+                      alignment: Alignment.centerRight,
+                    ),
+                    //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
+                    //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
+                    Transform(
+                        transform: Matrix4.rotationZ(
+                            (((currentVario.isFinite ? currentVario : 0.0) *
+                                        20) /
+                                    360) *
+                                (2 * pi)),
+                        alignment: FractionalOffset.center,
+                        child: Image(
+                          image: const AssetImage("assets/vario_current.png"),
+                          width: settingsValues["scalingFactor"]!,
+                          height: settingsValues["scalingFactor"]!,
+                          color: currentVarioColor,
+                        )),
+                    Transform(
+                        transform: Matrix4.rotationZ(
+                            (((averageVario.isFinite ? averageVario : 0.0) *
+                                        20) /
+                                    360) *
+                                (2 * pi)),
+                        alignment: FractionalOffset.center,
+                        child: Image(
+                          image: const AssetImage("assets/vario_average1.png"),
+                          width: settingsValues["scalingFactor"]!,
+                          height: settingsValues["scalingFactor"]!,
+                          color: currentVarioColor,
+                        )),
+                    Transform(
+                        transform: Matrix4.rotationZ(wind1Rotation),
+                        alignment: FractionalOffset.center,
+                        child: SizedBox(
+                            width: settingsValues["scalingFactor"]!,
+                            height: settingsValues["scalingFactor"]!,
+                            child: Icon(
+                              Icons.keyboard_backspace_rounded,
+                              color: Color.fromARGB(255, 162, 223, 255),
+                              size: settingsValues["scalingFactor"]! * 0.6,
+                            ))),
+                    Transform(
+                        transform: Matrix4.rotationZ(wind2Rotation),
+                        alignment: FractionalOffset.center,
+                        child: SizedBox(
+                            width: settingsValues["scalingFactor"]!,
+                            height: settingsValues["scalingFactor"]!,
+                            child: Icon(
+                              Icons.keyboard_backspace_rounded,
+                              color: Color.fromARGB(255, 141, 141, 141),
+                              size: settingsValues["scalingFactor"]! * 0.6,
+                            ))),Container(
+                      child: Text(
+                        '${varioData.batteryVoltage} V',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                        textAlign: TextAlign.left,
+                      ),
+                    ),
+                    Container(
                       width: settingsValues["scalingFactor"]!,
                       height: settingsValues["scalingFactor"]!,
-                      color: currentVarioColor,
-                    )),
-                Transform(
-                    transform: Matrix4.rotationZ(wind1Rotation),
-                    alignment: FractionalOffset.center,
-                    child: SizedBox(
-                        width: settingsValues["scalingFactor"]!,
-                        height: settingsValues["scalingFactor"]!,
-                        child: Icon(
-                          Icons.keyboard_backspace_rounded,
-                          color: Color.fromARGB(255, 162, 223, 255),
-                          size: settingsValues["scalingFactor"]! * 0.6,
-                        ))),
-                Transform(
-                    transform: Matrix4.rotationZ(
-                        wind2Rotation),
-                    alignment: FractionalOffset.center,
-                    child: SizedBox(
-                        width: settingsValues["scalingFactor"]!,
-                        height: settingsValues["scalingFactor"]!,
-                        child: Icon(
-                          Icons.keyboard_backspace_rounded,
-                          color: Color.fromARGB(255, 141, 141, 141),
-                          size: settingsValues["scalingFactor"]! * 0.6,
-                        ))),
-              ]),
+                      alignment: Alignment(0.5,-0.3),
+                      child: Text(
+                        '${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                        style: Theme.of(context).textTheme.bodyMedium,
+
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                    
+                    Container(
+                      width: settingsValues["scalingFactor"]!,
+                      height: settingsValues["scalingFactor"]!,
+                      alignment: Alignment(0.5,0.3),
+                      child: Text(
+                        '${(currentVario).toStringAsFixed(1)} m/s',
+                        style: Theme.of(context).textTheme.bodyMedium,
+
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ]),),
               Text(
                 '$message',
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -617,9 +650,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   IconButton(
                       onPressed: () {
                         setState(() {
-                          buttonPressed = 3;
+                          buttonPressed = 2;
                           currentVarioColor = Colors.blue;
-                          SoundGenerator.play();
                         });
                       },
                       icon: const Icon(
@@ -630,7 +662,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   IconButton(
                       onPressed: () {
                         setState(() {
-                          buttonPressed = 4;
+                          buttonPressed = 3;
                           currentVarioColor = Colors.brown;
                         });
                       },
@@ -642,13 +674,35 @@ class _MyHomePageState extends State<MyHomePage> {
                   IconButton(
                       onPressed: () {
                         setState(() {
-                          buttonPressed = 7;
+                          buttonPressed = 4;
                           currentVarioColor = Colors.deepPurple;
                         });
                       },
                       icon: const Icon(
                         Icons.computer,
                         color: Colors.deepPurple,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          SoundGenerator.play();
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.volume_up,
+                        color: Colors.green,
+                        size: 40.0,
+                      )),
+                  IconButton(
+                      onPressed: () {
+                        setState(() {
+                          SoundGenerator.stop();
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.volume_off,
+                        color: Colors.red,
                         size: 40.0,
                       )),
                 ],
@@ -659,7 +713,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   IconButton(
                       onPressed: () {
                         setState(() {
-                          buttonPressed = 5;
+                          windButtonPressed = 0;
                         });
                       },
                       icon: const Icon(
@@ -670,9 +724,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   IconButton(
                       onPressed: () {
                         setState(() {
-                          buttonPressed = 2;
-
-                          SoundGenerator.stop();
+                          windButtonPressed = 1;
                         });
                       },
                       icon: const Icon(
@@ -683,9 +735,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   IconButton(
                       onPressed: () {
                         setState(() {
-                          buttonPressed = 6;
+                          windButtonPressed = 2;
                         });
-                        print(settingsValues);
                       },
                       icon: const Icon(
                         Icons.connecting_airports_rounded,
@@ -708,7 +759,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             if (value != null) {
                               settingsValues = value;
                               saveSettings();
-    activateSettings();
+                              activateSettings();
                             }
                           }),
                       icon: const Icon(
