@@ -46,7 +46,8 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          bodyMedium: TextStyle(
+              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
@@ -548,7 +549,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         color: currentVarioColor,
                       )),
                   Transform(
-                      transform: Matrix4.rotationZ(wind1Rotation + pi/2),
+                      transform: Matrix4.rotationZ(wind1Rotation + pi / 2),
                       alignment: FractionalOffset.center,
                       child: SizedBox(
                           width: settingsValues["scalingFactor"]!,
@@ -559,7 +560,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             size: settingsValues["scalingFactor"]! * 0.6,
                           ))),
                   Transform(
-                      transform: Matrix4.rotationZ(wind2Rotation + pi/2),
+                      transform: Matrix4.rotationZ(wind2Rotation + pi / 2),
                       alignment: FractionalOffset.center,
                       child: SizedBox(
                           width: settingsValues["scalingFactor"]!,

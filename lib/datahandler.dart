@@ -109,7 +109,10 @@ class VarioData {
   void calculateYawUpdate(newYaw) {
     larusWind = gpsSpeed - airspeedVector;
     yawRate = ((yaw - newYaw) /
-        ((DateTime.now().microsecondsSinceEpoch - lastYawUpdate) / 1000000.0)) * 0.1 + yawRate * 0.9; // average filter
+                ((DateTime.now().microsecondsSinceEpoch - lastYawUpdate) /
+                    1000000.0)) *
+            0.1 +
+        yawRate * 0.9; // average filter
     if (yawRate.abs() < yawRateTurn) {
       yawRateOverLimitCounter = 0;
       turnStartTime = DateTime.now().microsecondsSinceEpoch;
@@ -172,7 +175,7 @@ class VarioData {
         calculateYawUpdate(newYaw);
         windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
         teCalculator.setNewTE(
-            airspeed - windEstimator.lastWindEstimate.x, height_gps);
+            airspeed - windEstimator.getKalmanWind().x, height_gps);
         windCompVario.setNewValue(teCalculator.getVario());
         writeData(
             '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)},${windEstimator.lastWindEstimate.toString()}~${logRawData ? logString : ""}');

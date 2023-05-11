@@ -68,18 +68,15 @@ class WindEstimator {
     // lastGroundSpeed - groundSpeed = realDifference
     // perceivedDifference - realDifference = wind
     int now = DateTime.now().microsecondsSinceEpoch;
-    if (now - lastWindEstimateTime > _msBetweenWindEstimates * 1000) {
-      Vector2 groundSpeedChange = lastgroundSpeed - groundspeedVector;
-      Vector2 currentAirspeed =
-          Vector2(cos(yaw) * airspeed, sin(yaw) * airspeed);
-      Vector2 airspeedChange = lastAirspeed - currentAirspeed;
-      lastAirspeed = currentAirspeed;
-      lastgroundSpeed = groundspeedVector;
-      lastWindEstimate = airspeedChange - groundSpeedChange;
-      _windKalman.Update(lastWindEstimate, now, true);
-      lastWindEstimate =
-          lastWindEstimate * (now - lastWindEstimateTime).toDouble() / 1000;
-      lastWindEstimateTime = now;
-    }
+    Vector2 groundSpeedChange = lastgroundSpeed - groundspeedVector;
+    Vector2 currentAirspeed = Vector2(cos(yaw) * airspeed, sin(yaw) * airspeed);
+    Vector2 airspeedChange = lastAirspeed - currentAirspeed;
+    lastAirspeed = currentAirspeed;
+    lastgroundSpeed = groundspeedVector;
+    lastWindEstimate = airspeedChange - groundSpeedChange;
+    _windKalman.Update(lastWindEstimate, now, true);
+    lastWindEstimate =
+        lastWindEstimate * (now - lastWindEstimateTime).toDouble() / 1000;
+    lastWindEstimateTime = now;
   }
 }

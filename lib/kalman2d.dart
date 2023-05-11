@@ -14,7 +14,6 @@ class KalmanFilter {
   int previous_ts_ = 0;
   bool initialized_ = false;
 
-
   /// Create a Kalman filter with the specified noise parameters. Covariance is the responsiveness of the filter to changes in the state. The higher the covariance, the more responsive the filter is to changes in the state. The lower the covariance, the smoother the filter is. The covariance is measured in meters^2. The noise parameters are the standard deviation of the noise in the x and y directions. The noise parameters are measured in meters/second^2.
   KalmanFilter(double noise_ax, double noise_ay, double z_cov_x, double z_cov_y)
       : F_ = Matrix4.identity(),
@@ -54,7 +53,7 @@ class KalmanFilter {
       return;
     }
     double dt = (timestamp.toDouble() - previous_ts_.toDouble());
-    dt = dt / 1000;
+    dt = dt / 1000000;
     // Update F
     F_.setEntry(0, 2, dt);
     F_.setEntry(1, 3, dt);
@@ -65,10 +64,23 @@ class KalmanFilter {
     //Q_ << (noise_ax_ / 4) * dt4, 0, (noise_ax_ / 2) * dt3, 0, 0, (noise_ay_ / 4) * dt4, 0,
     //    (noise_ay_ / 2) * dt3, (noise_ax_ / 2) * dt3, 0, noise_ax_ * dt2, 0, 0, noise_ay_ * dt3 / 2,
     //    0, noise_ay_ * dt2;
-    Q_ = Matrix4( (noise_ax_ / 4) * dt4,  0,                      (noise_ax_ / 2) * dt3,    0,
-                  0,                      (noise_ay_ / 4) * dt4,  0,                        (noise_ay_ / 2) * dt3,
-                  (noise_ax_ / 2) * dt3,  0,                      noise_ax_ * dt2,          0,
-                  0,                      noise_ay_ * dt3 / 2,    0,                        noise_ay_ * dt2);
+    Q_ = Matrix4(
+        (noise_ax_ / 4) * dt4,
+        0,
+        (noise_ax_ / 2) * dt3,
+        0,
+        0,
+        (noise_ay_ / 4) * dt4,
+        0,
+        (noise_ay_ / 2) * dt3,
+        (noise_ax_ / 2) * dt3,
+        0,
+        noise_ax_ * dt2,
+        0,
+        0,
+        noise_ay_ * dt3 / 2,
+        0,
+        noise_ay_ * dt2);
     Predict_();
     // Update using the new measurements
     Vector2 z_pred = Vector2(2, 1);
@@ -79,15 +91,16 @@ class KalmanFilter {
       double c2 = x_.length;
       if (c2 > 0.0001) {
         //H_ << x_(0) / c2, x_(1) / c2, 0, 0, -x_(1) / c1, x_(0) / c1, 0, 0;  // Jacobian Matrix
-        H_ = Matrix4( x_.x / c2,  x_.y / c2, 0, 0,
-                      -x_.y / c1, x_.x / c1, 0, 0,
-                      0, 0, 0, 0, 0, 0, 0, 0);
+        H_ = Matrix4(x_.x / c2, x_.y / c2, 0, 0, -x_.y / c1, x_.x / c1, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0);
         //z_pred << c2, std::atan2(x_(1), x_(0));  // h(x)-> (sqrt(x^2+y^2), atan(y,x))
         z_pred = Vector2(c2, atan2(x_.y, x_.x));
       } else {
         z_pred = Vector2(
             H_.getRow(0).dot(x_),
-            H_.getRow(1).dot(x_)); // 2x4 * 4x1 = 2x1, in this case last 2 rows are 0
+            H_
+                .getRow(1)
+                .dot(x_)); // 2x4 * 4x1 = 2x1, in this case last 2 rows are 0
       }
       Vector2 y = z - z_pred;
       Matrix4 S4 = H_ * P_ * H_.transposed();
