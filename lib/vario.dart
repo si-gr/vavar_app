@@ -1,14 +1,14 @@
 class Vario {
 
   Map<int, double> _varioValues = {};
-  int _averageTimeMs = 30000;
+  int _averageTimeUs = 30000;
 
-  Vario(this._averageTimeMs);
+  Vario(averageTimeMs):_averageTimeUs = averageTimeMs * 1000;
 
   void setNewValue(double varioValue) {
-    _varioValues.addAll({DateTime.now().millisecondsSinceEpoch: varioValue});
+    _varioValues.addAll({DateTime.now().microsecondsSinceEpoch: varioValue});
     _varioValues.removeWhere((key, value) =>
-        key < DateTime.now().millisecondsSinceEpoch - _averageTimeMs);
+        key < DateTime.now().microsecondsSinceEpoch - _averageTimeUs);
   }
 
   double getCurrentValue() {
@@ -20,12 +20,12 @@ class Vario {
   }
 
   void setAveragingTime(int timeMs) {
-    _averageTimeMs = timeMs;
+    _averageTimeUs = timeMs * 1000;
   }
 
   double getAverageValue() {
     _varioValues.removeWhere((key, value) =>
-        key < DateTime.now().millisecondsSinceEpoch - _averageTimeMs);
+        key < DateTime.now().microsecondsSinceEpoch - _averageTimeUs);
     if (_varioValues.length > 0) {
       double sum = 0;
       _varioValues.forEach((key, value) {

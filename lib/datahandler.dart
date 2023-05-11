@@ -62,7 +62,7 @@ class VarioData {
 
   Vector3 larusWind = Vector3(0, 0, 0);
 
-  final int appStartTime = DateTime.now().millisecondsSinceEpoch;
+  final int appStartTime = DateTime.now().microsecondsSinceEpoch;
   String logFilePath = "";
   String tmpWriteBuffer = "";
   var dataStreamController = StreamController<String>();
@@ -84,7 +84,7 @@ class VarioData {
     IOSink logFileSink = File(logFilePath).openWrite(mode: FileMode.append);
     await for (final dataString in dataStream.distinct()) {
       logFileSink
-          .write('${DateTime.now().millisecondsSinceEpoch},$dataString\n');
+          .write('${DateTime.now().microsecondsSinceEpoch},$dataString\n');
     }
   }
 
@@ -109,31 +109,31 @@ class VarioData {
   void calculateYawUpdate(newYaw) {
     larusWind = gpsSpeed - airspeedVector;
     yawRate = ((yaw - newYaw) /
-        ((DateTime.now().millisecondsSinceEpoch - lastYawUpdate) / 1000.0)) * 0.1 + yawRate * 0.9; // average filter
+        ((DateTime.now().microsecondsSinceEpoch - lastYawUpdate) / 1000000.0)) * 0.1 + yawRate * 0.9; // average filter
     if (yawRate.abs() < yawRateTurn) {
       yawRateOverLimitCounter = 0;
-      turnStartTime = DateTime.now().millisecondsSinceEpoch;
+      turnStartTime = DateTime.now().microsecondsSinceEpoch;
       xcsoarEkf.resetCircleSamples();
     } else if (yawRateOverLimitCounter == 0) {
       yawRateOverLimitCounter =
-          DateTime.now().millisecondsSinceEpoch - turnStartTime;
+          DateTime.now().microsecondsSinceEpoch - turnStartTime;
     }
     yaw = newYaw;
-    lastYawUpdate = DateTime.now().millisecondsSinceEpoch;
+    lastYawUpdate = DateTime.now().microsecondsSinceEpoch;
   }
 
   void calculateGPSSpeedUpdate() {
     if (yawRate.abs() > yawRateTurn) {
       xcsoarEkf.addCircleSample(
-          gpsSpeed, DateTime.now().millisecondsSinceEpoch);
+          gpsSpeed, DateTime.now().microsecondsSinceEpoch);
     }
     xcsoarEkf.update(airspeed, gpsSpeed);
     xcsoarEkfVelned.update(airspeed, velned);
   }
 
   void parse_ble_data(List<int> data) {
-    updateTime = DateTime.now().millisecondsSinceEpoch - lastUpdate;
-    lastUpdate = DateTime.now().millisecondsSinceEpoch;
+    updateTime = DateTime.now().microsecondsSinceEpoch - lastUpdate;
+    lastUpdate = DateTime.now().microsecondsSinceEpoch;
     int blePacketNum = data[data.length - 1];
     final bytes = Uint8List.fromList(data);
     final byteData = ByteData.sublistView(bytes);

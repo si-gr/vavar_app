@@ -19,7 +19,7 @@ class DataRestream {
 
   DataRestream(this.varioData, this.logFilePath) {
     // create new thread for data restream
-    realStartTime = DateTime.now().millisecondsSinceEpoch;
+    realStartTime = DateTime.now().microsecondsSinceEpoch;
   } // constructor
 
   Future<int> restreamFile() async {
@@ -34,7 +34,7 @@ class DataRestream {
     int lineCounter = 1;
     while (lineCounter < lines.length) {
       while (getLineTime(lines[lineCounter]) >
-          DateTime.now().millisecondsSinceEpoch - timeOffset) {
+          DateTime.now().microsecondsSinceEpoch - timeOffset) {
         await Future.delayed(Duration(milliseconds: 1));
 
         //print("lt ${getLineTime(lines[lineCounter])} ${DateTime.now().millisecondsSinceEpoch - timeOffset}");
@@ -150,7 +150,7 @@ class DataRestream {
       print(e);
     }
     varioData.updateTime =
-        DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate;
-    varioData.lastUpdate = DateTime.now().millisecondsSinceEpoch;
+        DateTime.now().microsecondsSinceEpoch - varioData.lastUpdate;
+    varioData.lastUpdate = DateTime.now().microsecondsSinceEpoch;
   }
 }

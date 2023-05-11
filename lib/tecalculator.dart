@@ -9,11 +9,11 @@ class TECalculator{
     double currentTE = pow(airspeed,2) / (2 * 9.81) + altitude;
     if (lastTE == 0){
       lastTE = currentTE;
-      lastTETime = DateTime.now().millisecondsSinceEpoch;
+      lastTETime = DateTime.now().microsecondsSinceEpoch;
       return currentTE;
     }
-    varioValue = (currentTE - lastTE) / (DateTime.now().millisecondsSinceEpoch - lastTETime) / 1000;
-    lastTETime = DateTime.now().millisecondsSinceEpoch;
+    varioValue = (currentTE - lastTE) / (DateTime.now().microsecondsSinceEpoch - lastTETime) / 1000000;
+    lastTETime = DateTime.now().microsecondsSinceEpoch;
     return currentTE;
   }
 

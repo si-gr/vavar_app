@@ -46,8 +46,7 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white, fontSize: 22),
-
+          bodyMedium: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
@@ -126,6 +125,8 @@ class _MyHomePageState extends State<MyHomePage> {
         (settingsValues["windAverageTimeS"]! * 1000).round());
     varioData.windEstimator
         .setFilterCovariance(settingsValues["windFilterCovariance"]!);
+    varioData.windEstimator.setMsBetweenWindEstimates(
+        settingsValues["msBetweenWindEstimates"]!.toInt());
   }
 
   /// Reset settings to default values
@@ -144,6 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "logRawData": 1,
       "logProcessedData": 1,
       "windFilterCovariance": 0.2,
+      "msBetweenWindEstimates": 20,
     };
   }
 
@@ -348,7 +350,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ];
       }
 
-
       if (windButtonPressed == 0) {
         wind1Rotation = Vector2(varioData.xcsoarEkf.getWind()[0],
                 varioData.xcsoarEkf.getWind()[1])
@@ -510,100 +511,94 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
-
             children: <Widget>[
-              Padding(padding: EdgeInsets.only(top: 20),
-              child:
-              Stack(
-                  children: [
-                    
-
-                    Image(
-                      image: AssetImage("assets/vario_background.png"),
-                      width: settingsValues["scalingFactor"]!,
-                      height: settingsValues["scalingFactor"]!,
-                      alignment: Alignment.centerRight,
-                    ),
-                    //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
-                    //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
-                    Transform(
-                        transform: Matrix4.rotationZ(
-                            (((currentVario.isFinite ? currentVario : 0.0) *
-                                        20) /
-                                    360) *
-                                (2 * pi)),
-                        alignment: FractionalOffset.center,
-                        child: Image(
-                          image: const AssetImage("assets/vario_current.png"),
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Stack(children: [
+                  Image(
+                    image: const AssetImage("assets/vario_background.png"),
+                    width: settingsValues["scalingFactor"]!,
+                    height: settingsValues["scalingFactor"]!,
+                    alignment: Alignment.centerRight,
+                  ),
+                  //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
+                  //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
+                  Transform(
+                      transform: Matrix4.rotationZ(
+                          (((currentVario.isFinite ? currentVario : 0.0) * 20) /
+                                  360) *
+                              (2 * pi)),
+                      alignment: FractionalOffset.center,
+                      child: Image(
+                        image: const AssetImage("assets/vario_current.png"),
+                        width: settingsValues["scalingFactor"]!,
+                        height: settingsValues["scalingFactor"]!,
+                        color: currentVarioColor,
+                      )),
+                  Transform(
+                      transform: Matrix4.rotationZ(
+                          (((averageVario.isFinite ? averageVario : 0.0) * 20) /
+                                  360) *
+                              (2 * pi)),
+                      alignment: FractionalOffset.center,
+                      child: Image(
+                        image: const AssetImage("assets/vario_average1.png"),
+                        width: settingsValues["scalingFactor"]!,
+                        height: settingsValues["scalingFactor"]!,
+                        color: currentVarioColor,
+                      )),
+                  Transform(
+                      transform: Matrix4.rotationZ(wind1Rotation + pi/2),
+                      alignment: FractionalOffset.center,
+                      child: SizedBox(
                           width: settingsValues["scalingFactor"]!,
                           height: settingsValues["scalingFactor"]!,
-                          color: currentVarioColor,
-                        )),
-                    Transform(
-                        transform: Matrix4.rotationZ(
-                            (((averageVario.isFinite ? averageVario : 0.0) *
-                                        20) /
-                                    360) *
-                                (2 * pi)),
-                        alignment: FractionalOffset.center,
-                        child: Image(
-                          image: const AssetImage("assets/vario_average1.png"),
+                          child: Icon(
+                            Icons.keyboard_backspace_rounded,
+                            color: const Color.fromARGB(255, 162, 223, 255),
+                            size: settingsValues["scalingFactor"]! * 0.6,
+                          ))),
+                  Transform(
+                      transform: Matrix4.rotationZ(wind2Rotation + pi/2),
+                      alignment: FractionalOffset.center,
+                      child: SizedBox(
                           width: settingsValues["scalingFactor"]!,
                           height: settingsValues["scalingFactor"]!,
-                          color: currentVarioColor,
-                        )),
-                    Transform(
-                        transform: Matrix4.rotationZ(wind1Rotation),
-                        alignment: FractionalOffset.center,
-                        child: SizedBox(
-                            width: settingsValues["scalingFactor"]!,
-                            height: settingsValues["scalingFactor"]!,
-                            child: Icon(
-                              Icons.keyboard_backspace_rounded,
-                              color: Color.fromARGB(255, 162, 223, 255),
-                              size: settingsValues["scalingFactor"]! * 0.6,
-                            ))),
-                    Transform(
-                        transform: Matrix4.rotationZ(wind2Rotation),
-                        alignment: FractionalOffset.center,
-                        child: SizedBox(
-                            width: settingsValues["scalingFactor"]!,
-                            height: settingsValues["scalingFactor"]!,
-                            child: Icon(
-                              Icons.keyboard_backspace_rounded,
-                              color: Color.fromARGB(255, 141, 141, 141),
-                              size: settingsValues["scalingFactor"]! * 0.6,
-                            ))),Container(
-                      child: Text(
-                        '${varioData.batteryVoltage} V',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                        textAlign: TextAlign.left,
-                      ),
+                          child: Icon(
+                            Icons.keyboard_backspace_rounded,
+                            color: const Color.fromARGB(255, 141, 141, 141),
+                            size: settingsValues["scalingFactor"]! * 0.6,
+                          ))),
+                  Container(
+                    child: Text(
+                      '${varioData.batteryVoltage} V',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.left,
                     ),
-                    Container(
-                      width: settingsValues["scalingFactor"]!,
-                      height: settingsValues["scalingFactor"]!,
-                      alignment: Alignment(0.5,-0.3),
-                      child: Text(
-                        '${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  Container(
+                    width: settingsValues["scalingFactor"]!,
+                    height: settingsValues["scalingFactor"]!,
+                    alignment: const Alignment(0.7, -0.3),
+                    child: Text(
+                      '${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
 
-                        textAlign: TextAlign.right,
-                      ),
+                  Container(
+                    width: settingsValues["scalingFactor"]!,
+                    height: settingsValues["scalingFactor"]!,
+                    alignment: const Alignment(0.7, 0.3),
+                    child: Text(
+                      '${(currentVario).toStringAsFixed(1)} m/s',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.right,
                     ),
-                    
-                    Container(
-                      width: settingsValues["scalingFactor"]!,
-                      height: settingsValues["scalingFactor"]!,
-                      alignment: Alignment(0.5,0.3),
-                      child: Text(
-                        '${(currentVario).toStringAsFixed(1)} m/s',
-                        style: Theme.of(context).textTheme.bodyMedium,
-
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                  ]),),
+                  ),
+                ]),
+              ),
               Text(
                 '$message',
                 style: Theme.of(context).textTheme.headlineSmall,

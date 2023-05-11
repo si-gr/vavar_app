@@ -20,6 +20,7 @@ class XCSoarWind {
   List<GPSSample> circleSamples = [];
   Vector3 circleWind = Vector3(0, 0, 0);
   int circleWindQuality = 0;
+  final int maximumSampleAgeUs = 2000000;
 
   num hypot(num x, num y) {
     var first = x.abs();
@@ -80,11 +81,11 @@ class XCSoarWind {
     if (circleCount <= 0 || circleSamples.isEmpty) return;
 
     // reject if average time step greater than 2.0 seconds
-    if (circleSamples.last.timestamp - circleSamples.first.timestamp > 2000)
+    if (circleSamples.last.timestamp - circleSamples.first.timestamp > maximumSampleAgeUs)
       return;
     if ((circleSamples.last.timestamp - circleSamples.first.timestamp) /
             (circleSamples.length - 1) >
-        2000) return;
+        maximumSampleAgeUs) return;
 
     // find average
     double av = 0;
@@ -180,7 +181,7 @@ class XCSoarWind {
     value.gpsSpeed = gpsSpeed;
     value.timestamp = timestamp;
     if (circleSamples.isNotEmpty &&
-        timestamp - circleSamples.last.timestamp > 2000) {
+        timestamp - circleSamples.last.timestamp > maximumSampleAgeUs) {
       // check if last timestamp is more than 2 seconds ago - probably new circle now
       circleCount = 0;
       currentCircleStart =
