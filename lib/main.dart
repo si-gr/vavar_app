@@ -156,6 +156,8 @@ class _MyHomePageState extends State<MyHomePage> {
       "msBetweenWindEstimates": 20,
       "rawVarKalQ": 0.005,
       "rawVarAvgKalQ": 0.002,
+      "artHorizonRollFactor": 1,
+      "artHorizonPitchFactor": 1,
     };
   }
 
@@ -368,8 +370,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 varioData.xcsoarEkf.getWind()[1])
             .angleToSigned(varioData.gpsSpeed.xy);
 
-        print(
-            "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
+        //print(
+        //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
       } else if (windButtonPressed == 1) {
         wind1Rotation =
             varioData.windEstimator.lastWindEstimate.angleTo(Vector2(1, 0));
@@ -790,7 +792,7 @@ class _MyHomePageState extends State<MyHomePage> {
               Stack(
                 children: [
                   Transform(
-                    transform: Matrix4.rotationZ(rollAngle * pi / 180),
+                    transform: Matrix4.rotationZ(settingsValues["artHorizonRollFactor"]! * rollAngle * pi / 180),
                     alignment: Alignment.center,
                     child: ClipOval(
                       child: Container(
@@ -800,7 +802,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           transform: Matrix4.diagonal3Values(8, 8, 8) +
                               Matrix4.translation(Vector3(
                                   -245,
-                                  -1050 + ((horizonPitch * pi / 180) * 618),
+                                  -1050 + ((settingsValues["artHorizonPitchFactor"]! * horizonPitch * pi / 180) * 618),
                                   2)),
                           child: Image(
                             image: const AssetImage("assets/arthorizon.png"),

@@ -15,33 +15,33 @@ class VarioData {
   double airspeed = double.nan;
 
   Vector3 airspeedVector = Vector3(0, 0, 0);
-  double roll = double.nan;
+  double roll = 0;
 
   Vector3 ardupilotWind = Vector3(0, 0, 0);
   Vector3 acceleration = Vector3(0, 0, 0);
-  double height_gps = double.nan;
-  double pitch = double.nan;
+  double height_gps = 0;
+  double pitch = 0;
 
   int latitude = 0;
   int longitude = 0;
-  double batteryVoltage = double.nan;
+  double batteryVoltage = 0;
   int gpsTime = 0;
-  double presTemp = double.nan;
+  double presTemp = 0;
   int gpsStatus = -5;
-  double turnRadius = double.nan;
+  double turnRadius = 0;
   Vector2 ekfGroundSpeed = Vector2(0, 0);
-  double ground_speed = double.nan;
-  double ground_course = double.nan;
-  double yaw = double.nan;
-  double yawRate = double.nan; // yaw per second
+  double ground_speed = 0;
+  double ground_course = 0;
+  double yaw = 0;
+  double yawRate = 0; // yaw per second
   int lastYawUpdate = 0; // time in ms of last yaw update
   double yawRateTurn = 0.5; // yaw rate to count as a turn
   int turnStartTime = 0; // time in ms of start of turn
   int yawRateOverLimitCounter = 0; // counter for how many ms
 
-  double raw_climb_rate = double.nan;
-  double simple_climb_rate = double.nan;
-  double reading = double.nan;
+  double raw_climb_rate = 0;
+  double simple_climb_rate = 0;
+  double reading = 0;
 
   Vario rawClimbVario = Vario(30000);
   Vario simpleClimbVario = Vario(30000);
