@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:vector_math/vector_math.dart';
+import 'package:vector_math/vector_math_64.dart';
 
 class GPSSample {
   Vector3 gpsSpeed = Vector3(0, 0, 0);
@@ -7,12 +7,15 @@ class GPSSample {
 }
 
 class XCSoarWind {
-  static const double WIND_K0 = 1.0e-2;
-  static const double WIND_K1 = 1.0e-5;
+  //static const double WIND_K0 = 1.0e-2;
+  //static const double WIND_K1 = 1.0e-5;
+  
+  double WIND_K0 = 1.0e-1;
+  double WIND_K1 = 1.0e-3;
 
   List<double> airspeedWindResult = [0, 0, 1]; // results
 
-  double k = WIND_K0 * 4;
+  double k = 0;
 
   int circleCount = 0;
   Vector3 currentCircleStart = Vector3(0, 0, 0);
@@ -22,29 +25,18 @@ class XCSoarWind {
   int circleWindQuality = 0;
   final int maximumSampleAgeUs = 2000000;
 
-  num hypot(num x, num y) {
-    var first = x.abs();
-    var second = y.abs();
-
-    if (y > x) {
-      first = y.abs();
-      second = x.abs();
-    }
-
-    if (first == 0.0) {
-      return second;
-    }
-
-    final t = second / first;
-    return first * sqrt(1 + t * t);
+  XCSoarWind(WIND_K0, WIND_K1) {
+    k = WIND_K0 * 4;
   }
+
 
   Future<void> update(double airspeed, Vector3 gpsSpeed) async {
     if (!airspeed.isNaN && !gpsSpeed.x.isNaN && !gpsSpeed.y.isNaN) {
+      print("updating xcsoar wind $airspeed $gpsSpeed");
       // airsp = sf * | gps_v - wind_v |
       double dx = gpsSpeed.x - airspeedWindResult[0];
       double dy = gpsSpeed.y - airspeedWindResult[1];
-      double mag = hypot(dx, dy).toDouble();
+      double mag = sqrt(pow(dx, 2) + pow(dy, 2));
 
       List<double> K = [
         -airspeedWindResult[2] * dx / mag * k,
@@ -138,7 +130,7 @@ class XCSoarWind {
     circleSamples.forEach((sample) {
       double wx = sample.gpsSpeed.x * av + sample.gpsSpeed.y;
       double wy = sample.gpsSpeed.y * av;
-      double cmag = hypot(wx, wy) - sample.gpsSpeed.length;
+      double cmag = sqrt(pow(wx, 2) + pow(wy, 2)) - sample.gpsSpeed.length;
       rthis += cmag * cmag;
     });
 

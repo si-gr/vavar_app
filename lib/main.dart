@@ -14,7 +14,7 @@ import 'dart:io' show Platform;
 import 'dart:async';
 import 'package:sound_generator/sound_generator.dart';
 import 'package:sound_generator/waveTypes.dart';
-import 'package:vector_math/vector_math.dart' hide Colors, Matrix4;
+import 'package:vector_math/vector_math_64.dart' hide Colors, Matrix4;
 import 'dart:io';
 import 'dart:isolate';
 import 'package:path/path.dart' as path;
@@ -81,6 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Map<String, double> settingsValues = {};
   bool isPlaying = false;
   bool colorSwitchVario = false;
+
   Color varioColor = Colors.white;
   final List<Color> warningColors = [
     const Color.fromARGB(255, 255, 145, 137),
@@ -93,6 +94,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double targetMinRoll = 40;
   Color currentVarioColor = Colors.green;
 
+  double horizonPitch = 0;
   double currentVario = 0;
   double oldVario = 0;
   double averageVario = 0;
@@ -128,6 +130,11 @@ class _MyHomePageState extends State<MyHomePage> {
         .setFilterCovariance(settingsValues["windFilterCovariance"]!);
     varioData.windEstimator.setMsBetweenWindEstimates(
         settingsValues["msBetweenWindEstimates"]!.toInt());
+    varioData.rawClimbVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
+    varioData.rawClimbVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
+    varioData.gpsVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
+    varioData.gpsVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
+    print("activating settings");
   }
 
   /// Reset settings to default values
@@ -139,7 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "varioOnOffChangeFactor": 15,
       "varioSoundGeneratorSampleRate": 20000,
       "circleDetectionMinTime": 5000,
-      "varioVolume": 0.5,
+      "varioVolume": 0.99,
       "targetMinRoll": 40,
       "varioAverageTimeS": 30,
       "windAverageTimeS": 5,
@@ -147,6 +154,8 @@ class _MyHomePageState extends State<MyHomePage> {
       "logProcessedData": 1,
       "windFilterCovariance": 0.2,
       "msBetweenWindEstimates": 20,
+      "rawVarKalQ": 0.005,
+      "rawVarAvgKalQ": 0.002,
     };
   }
 
@@ -291,6 +300,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _updateValues() {
     //currentVario = varioData.airspeed;
     rollAngle = varioData.roll / (2 * pi) * 360;
+    horizonPitch = varioData.pitch / (2 * pi) * 360;
     currentWarningString = "";
     if (rollAngle.abs() < targetMinRoll) {
       if (varioData.yawRateOverLimitCounter >
@@ -311,7 +321,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "alt ${varioData.height_gps.toString()}",
           "raw climb"
         ];
-        currentVario = varioData.rawClimbVario.getCurrentValue();
+        currentVario = varioData.rawClimbVario.getFilteredVario();
         averageVario = varioData.rawClimbVario.getAverageValue();
       } else if (buttonPressed == 1) {
         // Airspeed Button
@@ -330,8 +340,8 @@ class _MyHomePageState extends State<MyHomePage> {
           "awz ${varioData.ardupilotWind.z.toStringAsFixed(1)}",
           "gps vario"
         ];
-        currentVario = varioData.gpsVario.getCurrentValue();
-        averageVario = varioData.gpsVario.getAverageValue();
+        currentVario = varioData.gpsVario.getFilteredVario();
+        averageVario = varioData.gpsVario.getFilteredAverageVario();
       } else if (buttonPressed == 3) {
         // Cloud Button
         _displayText = [
@@ -347,32 +357,44 @@ class _MyHomePageState extends State<MyHomePage> {
           "gx ${(varioData.gpsSpeed.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
           "gy ${(varioData.gpsSpeed.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
           "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
-          "gps speed"
+          "gps speed rcvar"
         ];
+        currentVario = varioData.rawClimbVario.getFilteredVario();
+        averageVario = varioData.rawClimbVario.getAverageValue();
       }
 
       if (windButtonPressed == 0) {
-        wind1Rotation = Vector2(varioData.xcsoarEkf.getWind()[0],
+        wind2Rotation = Vector2(varioData.xcsoarEkf.getWind()[0],
                 varioData.xcsoarEkf.getWind()[1])
-            .angleTo(Vector2(0, 0));
+            .angleToSigned(varioData.gpsSpeed.xy);
+
+        print(
+            "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
       } else if (windButtonPressed == 1) {
         wind1Rotation =
-            varioData.windEstimator.lastWindEstimate.angleTo(Vector2(0, 0));
-        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
+            varioData.windEstimator.lastWindEstimate.angleTo(Vector2(1, 0));
+        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(1, 0, 0));
       } else if (windButtonPressed == 2) {
-        wind1Rotation = varioData.ardupilotWind.angleTo(Vector3(0, 0, 0));
-        wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(0, 0));
+        wind1Rotation = varioData.ardupilotWind.angleTo(Vector3(1, 0, 0));
+        wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
       }
     });
   }
 
   Future<void> _regularUpdates() async {
     _updateValues();
-    while (
-        DateTime.now().millisecondsSinceEpoch - varioData.lastUpdate < 5000) {
+    int notUpdatingCounter = 0;
+    while (notUpdatingCounter < 5) {
       await Future.delayed(const Duration(milliseconds: 1));
       _updateValues();
+      if (DateTime.now().microsecondsSinceEpoch - varioData.lastUpdate <
+          5000000) {
+        notUpdatingCounter = 0;
+      } else {
+        notUpdatingCounter++;
+      }
     }
+    print("no longer updating");
   }
 
   Future<void> _dialogBuilder(BuildContext context) async {
@@ -765,6 +787,40 @@ class _MyHomePageState extends State<MyHomePage> {
                       )),
                 ],
               ),
+              Stack(
+                children: [
+                  Transform(
+                    transform: Matrix4.rotationZ(rollAngle * pi / 180),
+                    alignment: Alignment.center,
+                    child: ClipOval(
+                      child: Container(
+                        width: settingsValues["scalingFactor"]!,
+                        height: settingsValues["scalingFactor"]!,
+                        child: Transform(
+                          transform: Matrix4.diagonal3Values(8, 8, 8) +
+                              Matrix4.translation(Vector3(
+                                  -245,
+                                  -1050 + ((horizonPitch * pi / 180) * 618),
+                                  2)),
+                          child: Image(
+                            image: const AssetImage("assets/arthorizon.png"),
+                            alignment: Alignment(-1, 0),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  ClipOval(
+                    child: Image(
+                      image: const AssetImage("assets/horizon_static.png"),
+                      width: settingsValues["scalingFactor"]!,
+                      height: settingsValues["scalingFactor"]!,
+                    ),
+                  )
+                ],
+              ),
+
+              /*
               Container(
                 color: warningColors[warningColorIndex],
                 child: Text(
@@ -773,7 +829,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       fontSize: 30,
                       color: warningColors[(warningColorIndex + 1) % 2]),
                 ),
-              )
+              )*/
             ],
           ),
         ),

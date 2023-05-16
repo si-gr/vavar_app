@@ -12,8 +12,10 @@ class TECalculator{
       lastTETime = DateTime.now().microsecondsSinceEpoch;
       return currentTE;
     }
-    varioValue = (currentTE - lastTE) / (DateTime.now().microsecondsSinceEpoch - lastTETime) / 1000000;
+    varioValue = (currentTE - lastTE) * 1000000 / (DateTime.now().microsecondsSinceEpoch - lastTETime).toDouble();
+    //print("as $airspeed alt $altitude te $currentTE var $varioValue micro ${(DateTime.now().microsecondsSinceEpoch - lastTETime)}");
     lastTETime = DateTime.now().microsecondsSinceEpoch;
+    lastTE = currentTE;
     return currentTE;
   }
 

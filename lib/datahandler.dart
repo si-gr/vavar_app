@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:ble_larus_android/tecalculator.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:vector_math/vector_math_64.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:ble_larus_android/vario.dart';
 import 'WindEstimator.dart';
@@ -49,6 +49,7 @@ class VarioData {
   Vario windCompVario = Vario(30000);
   WindEstimator windEstimator = WindEstimator(5000, 0.2);
   TECalculator teCalculator = TECalculator();
+  TECalculator kalmanVarioTECalculator = TECalculator();
 
   Vector3 gpsSpeed = Vector3(0, 0, 0);
 
@@ -57,8 +58,8 @@ class VarioData {
   int lastUpdate = 0;
   int updateTime = 0;
 
-  XCSoarWind xcsoarEkf = XCSoarWind();
-  XCSoarWind xcsoarEkfVelned = XCSoarWind();
+  XCSoarWind xcsoarEkf = XCSoarWind(1.0e-1, 1.0e-3);
+  XCSoarWind xcsoarEkfVelned = XCSoarWind(1.0e-1, 1.0e-3);
 
   Vector3 larusWind = Vector3(0, 0, 0);
 
@@ -163,6 +164,8 @@ class VarioData {
             byteData.getFloat32(8, Endian.little));
         height_gps = byteData.getInt32(12, Endian.little) / 100.0;
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
+        kalmanVarioTECalculator.setNewTE(airspeed, height_gps);
+        rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
         writeData(
             '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~${logRawData ? logString : ""}');
         break;
@@ -188,7 +191,6 @@ class VarioData {
             byteData.getFloat32(8, Endian.little); // wind compensated by larus
         simple_climb_rate = byteData.getFloat32(12, Endian.little);
         reading = byteData.getInt16(16, Endian.little) / 100.0;
-        rawClimbVario.setNewValue(raw_climb_rate);
         simpleClimbVario.setNewValue(simple_climb_rate);
         writeData(
             '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~${logRawData ? logString : ""}');
@@ -203,7 +205,7 @@ class VarioData {
             byteData.getInt16(8, Endian.little) / 500.0,
             byteData.getInt16(10, Endian.little) / 500.0);
         calculateGPSSpeedUpdate();
-        gpsVario.setNewValue(gpsSpeed.z);
+        gpsVario.setNewValue(gpsSpeed.z * -1.0);
         writeData(
             '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~${logRawData ? logString : ""}');
         break;

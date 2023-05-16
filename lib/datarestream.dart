@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:ble_larus_android/datahandler.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:vector_math/vector_math_64.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'dart:io';
@@ -28,8 +28,8 @@ class DataRestream {
     var lines = file.readAsLinesSync();
     print(lines[0]);
     print("Length: ${lines.length}");
-    int logStartTime =
-        int.parse(lines[0].substring(0, lines[0].indexOf(',') - 1));
+    int logStartTime = getLineTime(lines[0]);
+        
     timeOffset = realStartTime - logStartTime;
     int lineCounter = 1;
     while (lineCounter < lines.length) {
@@ -37,11 +37,10 @@ class DataRestream {
           DateTime.now().microsecondsSinceEpoch - timeOffset) {
         await Future.delayed(Duration(milliseconds: 1));
 
-        //print("lt ${getLineTime(lines[lineCounter])} ${DateTime.now().millisecondsSinceEpoch - timeOffset}");
       }
       updateVarioData(lines[lineCounter]);
       lineCounter++;
-      print("new line $lineCounter");
+      //print("new line $lineCounter");
     }
     print("Log file done\n");
     return lineCounter;
@@ -50,7 +49,7 @@ class DataRestream {
   int getLineTime(String line) {
     if (line.indexOf(',') > 0) {
       try {
-        return int.parse(line.substring(0, line.indexOf(',') - 1));
+        return int.parse(line.substring(0, line.indexOf(',')));
       } on FormatException {
         print("Error parsing line time");
         return 0;
@@ -87,6 +86,8 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[4])));
           varioData.height_gps = double.parse(stripNonNumeric(splittedLine[5]));
           varioData.pitch = double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.kalmanVarioTECalculator.setNewTE(varioData.airspeed, varioData.height_gps);
+          varioData.rawClimbVario.setNewValue(varioData.kalmanVarioTECalculator.getVario());
           break;
         case '2':
           // '2,${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${yawRate.toStringAsFixed(4)}');
@@ -127,6 +128,8 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[6])),
               double.parse(stripNonNumeric(splittedLine[7])));
           varioData.calculateGPSSpeedUpdate();
+          //print("setting ${varioData.gpsSpeed.z * -1.0}");
+          varioData.gpsVario.setNewValue(varioData.gpsSpeed.z * -1.0);
           break;
         case '5':
           // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');

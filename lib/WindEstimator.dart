@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:ble_larus_android/kalman2d.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:vector_math/vector_math_64.dart';
 
 /// Estimates short term wind changes based on yaw changes, airspeed changes and groundspeed changes
 
@@ -76,7 +76,7 @@ class WindEstimator {
     lastWindEstimate = airspeedChange - groundSpeedChange;
     _windKalman.Update(lastWindEstimate, now, true);
     lastWindEstimate =
-        lastWindEstimate * (now - lastWindEstimateTime).toDouble() / 1000;
+        lastWindEstimate * (now - lastWindEstimateTime).toDouble() / 1000000;
     lastWindEstimateTime = now;
   }
 }
