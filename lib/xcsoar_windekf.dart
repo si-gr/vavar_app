@@ -9,7 +9,7 @@ class GPSSample {
 class XCSoarWind {
   //static const double WIND_K0 = 1.0e-2;
   //static const double WIND_K1 = 1.0e-5;
-  
+
   double WIND_K0 = 1.0e-1;
   double WIND_K1 = 1.0e-3;
 
@@ -29,10 +29,9 @@ class XCSoarWind {
     k = WIND_K0 * 4;
   }
 
-
   Future<void> update(double airspeed, Vector3 gpsSpeed) async {
     if (!airspeed.isNaN && !gpsSpeed.x.isNaN && !gpsSpeed.y.isNaN) {
-      print("updating xcsoar wind $airspeed $gpsSpeed");
+      //print("updating xcsoar wind $airspeed $gpsSpeed");
       // airsp = sf * | gps_v - wind_v |
       double dx = gpsSpeed.x - airspeedWindResult[0];
       double dy = gpsSpeed.y - airspeedWindResult[1];
@@ -73,8 +72,8 @@ class XCSoarWind {
     if (circleCount <= 0 || circleSamples.isEmpty) return;
 
     // reject if average time step greater than 2.0 seconds
-    if (circleSamples.last.timestamp - circleSamples.first.timestamp > maximumSampleAgeUs)
-      return;
+    if (circleSamples.last.timestamp - circleSamples.first.timestamp >
+        maximumSampleAgeUs) return;
     if ((circleSamples.last.timestamp - circleSamples.first.timestamp) /
             (circleSamples.length - 1) >
         maximumSampleAgeUs) return;

@@ -1,14 +1,14 @@
 class Kalman1D {
-  double errorMeasure = 0.5;
-  double errorEstimate = 0.5;
+  double errorMeasure = 2;
+  double errorEstimate = 2;
   double _q = 0.001;
-  double _lastEstimate;
+  double _lastEstimate = 0;
   double _currentEstimate = 0;
 
   Kalman1D(lastEstimate, q)
       : _lastEstimate = lastEstimate,
         _q = q;
-    
+
   void setGain(double q) {
     _q = q;
   }
@@ -27,7 +27,7 @@ class Kalman1D {
     _currentEstimate = currentEstimate;
   }
 
-  double getLastValue(){
+  double getLastValue() {
     return _currentEstimate;
   }
 }

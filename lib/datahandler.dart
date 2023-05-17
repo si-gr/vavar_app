@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:ui';
+import 'package:ble_larus_android/teSpeedCalculator.dart';
 import 'package:ble_larus_android/tecalculator.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -42,6 +43,7 @@ class VarioData {
   double raw_climb_rate = 0;
   double simple_climb_rate = 0;
   double reading = 0;
+  double airspeedOffset = -15;
 
   Vario rawClimbVario = Vario(30000);
   Vario simpleClimbVario = Vario(30000);
@@ -50,6 +52,8 @@ class VarioData {
   WindEstimator windEstimator = WindEstimator(5000, 0.2);
   TECalculator teCalculator = TECalculator();
   TECalculator kalmanVarioTECalculator = TECalculator();
+  TESpeedCalculator teSpeedCalculator = TESpeedCalculator();
+  Vario rawClimbSpeedVario = Vario(30000);
 
   Vector3 gpsSpeed = Vector3(0, 0, 0);
 
@@ -72,6 +76,7 @@ class VarioData {
 
   void setVarioAverageTime(int timeMs) {
     rawClimbVario.setAveragingTime(timeMs);
+    rawClimbSpeedVario.setAveragingTime(timeMs);
     simpleClimbVario.setAveragingTime(timeMs);
     gpsVario.setAveragingTime(timeMs);
     windCompVario.setAveragingTime(timeMs);
@@ -147,7 +152,7 @@ class VarioData {
     }
     switch (blePacketNum) {
       case 0:
-        airspeed = byteData.getFloat32(0, Endian.little);
+        airspeed = byteData.getFloat32(0, Endian.little) + airspeedOffset;
         airspeedVector = Vector3(
             byteData.getFloat32(4, Endian.little),
             byteData.getFloat32(8, Endian.little),
@@ -164,8 +169,10 @@ class VarioData {
             byteData.getFloat32(8, Endian.little));
         height_gps = byteData.getInt32(12, Endian.little) / 100.0;
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
-        kalmanVarioTECalculator.setNewTE(airspeed, height_gps);
-        rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
+        if (!airspeed.isNaN && airspeed > 0 && !height_gps.isNaN) {
+          kalmanVarioTECalculator.setNewTE(airspeed, height_gps);
+          rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
+        }
         writeData(
             '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~${logRawData ? logString : ""}');
         break;
@@ -176,12 +183,16 @@ class VarioData {
         ground_speed = byteData.getFloat32(12, Endian.little);
         double newYaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         calculateYawUpdate(newYaw);
-        windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
-        teCalculator.setNewTE(
-            airspeed - windEstimator.getKalmanWind().x, height_gps);
-        windCompVario.setNewValue(teCalculator.getVario());
+        if (!airspeed.isNaN && !ekfGroundSpeed.isNaN) {
+          windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
+          teCalculator.setNewTE(
+              airspeed - windEstimator.getKalmanWind().x, height_gps);
+
+          windCompVario.setNewValue(teCalculator.getVario());
+        }
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${newYaw.toStringAsFixed(4)},${windEstimator.lastWindEstimate.toString()}~${logRawData ? logString : ""}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${newYaw.toStringAsFixed(4)}}~${logRawData ? logString : ""}');
+
         break;
       case 3:
         turnRadius = byteData.getFloat32(0, Endian.little);
@@ -206,6 +217,10 @@ class VarioData {
             byteData.getInt16(10, Endian.little) / 500.0);
         calculateGPSSpeedUpdate();
         gpsVario.setNewValue(gpsSpeed.z * -1.0);
+        if (!airspeed.isNaN && !gpsSpeed.z.isNaN && airspeed > 0) {
+          teSpeedCalculator.setNewTE(airspeed, gpsSpeed.z * -1);
+          rawClimbSpeedVario.setNewValue(teSpeedCalculator.getVario());
+        }
         writeData(
             '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~${logRawData ? logString : ""}');
         break;

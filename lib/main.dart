@@ -132,18 +132,25 @@ class _MyHomePageState extends State<MyHomePage> {
         settingsValues["msBetweenWindEstimates"]!.toInt());
     varioData.rawClimbVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
     varioData.rawClimbVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
+    varioData.rawClimbSpeedVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
+    varioData.rawClimbSpeedVario
+        .setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
     varioData.gpsVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
     varioData.gpsVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
+    varioData.airspeedOffset = settingsValues["airspeedOffset"]!;
     print("activating settings");
   }
 
   /// Reset settings to default values
   void resetSettings() {
     settingsValues = {
+      "airspeedOffset": -15,
       "scalingFactor": 300,
       "zeroFrequency": 250,
       "frequencyChange": 50,
       "varioOnOffChangeFactor": 15,
+      "varioOnTimeZ": 400,
+      "varioOffTimeZ": 400,
       "varioSoundGeneratorSampleRate": 20000,
       "circleDetectionMinTime": 5000,
       "varioVolume": 0.99,
@@ -154,7 +161,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "logProcessedData": 1,
       "windFilterCovariance": 0.2,
       "msBetweenWindEstimates": 20,
-      "rawVarKalQ": 0.005,
+      "rawVarKalQ": 0.008,
       "rawVarAvgKalQ": 0.002,
       "artHorizonRollFactor": -1,
       "artHorizonPitchFactor": 1,
@@ -249,8 +256,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> regulateVariometer() async {
     bool varioOn = false;
-    double cycleTimeOn = 800;
-    double cycleTimeOff = 800;
+    double cycleTimeOn = settingsValues["varioOnTimeZ"]!;
+    double cycleTimeOff = settingsValues["varioOffTimeZ"]!;
     int lastTime = DateTime.now().millisecondsSinceEpoch;
     while (true) {
       await Future.delayed(
@@ -259,7 +266,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       cycleTimeOn = min(
           max(
-              800 -
+              settingsValues["varioOnTimeZ"]! -
                   (log((currentVario.abs() *
                               settingsValues["varioOnOffChangeFactor"]!) +
                           1)) *
@@ -333,7 +340,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "airsy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
           "airsz ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
         ];
-        currentVario = varioData.simpleClimbVario.getCurrentValue();
+        currentVario = varioData.ardupilotWind.z;
         averageVario = varioData.simpleClimbVario.getAverageValue();
       } else if (buttonPressed == 2) {
         _displayText = [
@@ -361,14 +368,19 @@ class _MyHomePageState extends State<MyHomePage> {
           "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
           "gps speed rcvar"
         ];
-        currentVario = varioData.rawClimbVario.getFilteredVario();
-        averageVario = varioData.rawClimbVario.getAverageValue();
+        currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
+        averageVario = varioData.rawClimbSpeedVario.getAverageValue();
       }
 
       if (windButtonPressed == 0) {
-        wind2Rotation = Vector2(varioData.xcsoarEkf.getWind()[0],
-                varioData.xcsoarEkf.getWind()[1])
-            .angleToSigned(varioData.gpsSpeed.xy);
+        wind2Rotation = -1 *
+            (Vector2(varioData.xcsoarEkf.getWind()[0],
+                        varioData.xcsoarEkf.getWind()[1])
+                    .angleToSigned(varioData.gpsSpeed.xy) +
+                pi);
+        wind1Rotation = -1 *
+            (varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy) +
+                pi);
 
         //print(
         //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
@@ -377,7 +389,8 @@ class _MyHomePageState extends State<MyHomePage> {
             varioData.windEstimator.lastWindEstimate.angleTo(Vector2(1, 0));
         wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(1, 0, 0));
       } else if (windButtonPressed == 2) {
-        wind1Rotation = varioData.ardupilotWind.angleTo(Vector3(1, 0, 0));
+        wind2Rotation =
+            varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
         wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
       }
     });
@@ -792,7 +805,11 @@ class _MyHomePageState extends State<MyHomePage> {
               Stack(
                 children: [
                   Transform(
-                    transform: Matrix4.rotationZ(settingsValues["artHorizonRollFactor"]! * rollAngle * pi / 180),
+                    transform: Matrix4.rotationZ(
+                        settingsValues["artHorizonRollFactor"]! *
+                            rollAngle *
+                            pi /
+                            180),
                     alignment: Alignment.center,
                     child: ClipOval(
                       child: Container(
@@ -802,7 +819,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           transform: Matrix4.diagonal3Values(8, 8, 8) +
                               Matrix4.translation(Vector3(
                                   -245,
-                                  -1050 + ((settingsValues["artHorizonPitchFactor"]! * horizonPitch * pi / 180) * 618),
+                                  -1050 +
+                                      ((settingsValues[
+                                                  "artHorizonPitchFactor"]! *
+                                              horizonPitch *
+                                              pi /
+                                              180) *
+                                          618),
                                   2)),
                           child: Image(
                             image: const AssetImage("assets/arthorizon.png"),

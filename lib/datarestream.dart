@@ -29,14 +29,13 @@ class DataRestream {
     print(lines[0]);
     print("Length: ${lines.length}");
     int logStartTime = getLineTime(lines[0]);
-        
+
     timeOffset = realStartTime - logStartTime;
     int lineCounter = 1;
     while (lineCounter < lines.length) {
       while (getLineTime(lines[lineCounter]) >
           DateTime.now().microsecondsSinceEpoch - timeOffset) {
         await Future.delayed(Duration(milliseconds: 1));
-
       }
       updateVarioData(lines[lineCounter]);
       lineCounter++;
@@ -86,8 +85,10 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[4])));
           varioData.height_gps = double.parse(stripNonNumeric(splittedLine[5]));
           varioData.pitch = double.parse(stripNonNumeric(splittedLine[6]));
-          varioData.kalmanVarioTECalculator.setNewTE(varioData.airspeed, varioData.height_gps);
-          varioData.rawClimbVario.setNewValue(varioData.kalmanVarioTECalculator.getVario());
+          varioData.kalmanVarioTECalculator
+              .setNewTE(varioData.airspeed, varioData.height_gps);
+          varioData.rawClimbVario
+              .setNewValue(varioData.kalmanVarioTECalculator.getVario());
           break;
         case '2':
           // '2,${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${yawRate.toStringAsFixed(4)}');
@@ -130,6 +131,15 @@ class DataRestream {
           varioData.calculateGPSSpeedUpdate();
           //print("setting ${varioData.gpsSpeed.z * -1.0}");
           varioData.gpsVario.setNewValue(varioData.gpsSpeed.z * -1.0);
+          if (!varioData.gpsSpeed.z.isNaN &&
+              !varioData.airspeed.isNaN &&
+              varioData.airspeed > 0.0) {
+            varioData.teSpeedCalculator
+                .setNewTE(varioData.airspeed, varioData.gpsSpeed.z * -1.0);
+            varioData.rawClimbSpeedVario
+                .setNewValue(varioData.teSpeedCalculator.getVario());
+          }
+          //print("gps speed z is ${varioData.gpsSpeed.z}");
           break;
         case '5':
           // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
