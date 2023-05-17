@@ -156,7 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "msBetweenWindEstimates": 20,
       "rawVarKalQ": 0.005,
       "rawVarAvgKalQ": 0.002,
-      "artHorizonRollFactor": 1,
+      "artHorizonRollFactor": -1,
       "artHorizonPitchFactor": 1,
     };
   }
