@@ -33,9 +33,13 @@ class VarioData {
   Vector2 ekfGroundSpeed = Vector2(0, 0);
   double ground_speed = 0;
   double ground_course = 0;
+
   double yaw = 0;
+  int yawUpdateTime = 0;
+  double oldYaw = 0;
+
   double yawRate = 0; // yaw per second
-  int lastYawUpdate = 0; // time in ms of last yaw update
+  int lastYawUpdate = 0; // time in uws of last yaw update
   double yawRateTurn = 0.5; // yaw rate to count as a turn
   int turnStartTime = 0; // time in ms of start of turn
   int yawRateOverLimitCounter = 0; // counter for how many ms
@@ -43,7 +47,9 @@ class VarioData {
   double raw_climb_rate = 0;
   double simple_climb_rate = 0;
   double reading = 0;
-  double airspeedOffset = -15;
+  double airspeedOffset = -4;
+
+  double kalmanAccFactor = 1;
 
   Vario rawClimbVario = Vario(30000);
   Vario simpleClimbVario = Vario(30000);
@@ -73,6 +79,8 @@ class VarioData {
   var dataStreamController = StreamController<String>();
   bool logRawData = true;
   bool logProcessedData = true;
+  int allDataReceived =
+      4; // add 2^packet_num to this variable for each received packet
 
   void setVarioAverageTime(int timeMs) {
     rawClimbVario.setAveragingTime(timeMs);
@@ -112,9 +120,9 @@ class VarioData {
     }
   }
 
-  void calculateYawUpdate(newYaw) {
+  void calculateYawUpdate() {
     larusWind = gpsSpeed - airspeedVector;
-    yawRate = ((yaw - newYaw) /
+    yawRate = ((oldYaw - yaw) /
                 ((DateTime.now().microsecondsSinceEpoch - lastYawUpdate) /
                     1000000.0)) *
             0.1 +
@@ -127,7 +135,7 @@ class VarioData {
       yawRateOverLimitCounter =
           DateTime.now().microsecondsSinceEpoch - turnStartTime;
     }
-    yaw = newYaw;
+    oldYaw = yaw;
     lastYawUpdate = DateTime.now().microsecondsSinceEpoch;
   }
 
@@ -138,6 +146,36 @@ class VarioData {
     }
     xcsoarEkf.update(airspeed, gpsSpeed);
     xcsoarEkfVelned.update(airspeed, velned);
+  }
+
+  void processUpdate(int blePacketNum) {
+    if ((allDataReceived ~/ pow(2, blePacketNum).toInt()) % 2 == 0) {
+      allDataReceived += pow(2, blePacketNum).toInt();
+    } else if (allDataReceived == 63) {
+      if (blePacketNum == 1) {
+        kalmanVarioTECalculator.setNewTE(airspeed, height_gps);
+        //print("kalman var ${kalmanVarioTECalculator.getVario()} h ${height_gps} a ${airspeed}");
+        rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
+      }
+      if (blePacketNum == 0) {
+        
+        /*if (blePacketNum == 2) {
+      calculateYawUpdate();
+    }*/
+        //windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
+        //teCalculator.setNewTE(
+        //    airspeed - windEstimator.getKalmanWind().x, height_gps);
+
+        //windCompVario.setNewValue(teCalculator.getVario());
+
+        simpleClimbVario.setNewValue(simple_climb_rate);
+        calculateGPSSpeedUpdate();
+        gpsVario.setNewValue(gpsSpeed.z * -1.0);
+        teSpeedCalculator.setNewTE(airspeed, gpsSpeed.z * -1);
+        rawClimbSpeedVario.setNewValueAcc(teSpeedCalculator.getVario(),
+            kalmanAccFactor * (acceleration.z + acceleration.x * sin(roll)));
+      }
+    }
   }
 
   void parse_ble_data(List<int> data) {
@@ -158,7 +196,6 @@ class VarioData {
             byteData.getFloat32(8, Endian.little),
             byteData.getFloat32(12, Endian.little));
         roll = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
-
         writeData(
             '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}~${logRawData ? logString : ""}');
         break;
@@ -169,10 +206,6 @@ class VarioData {
             byteData.getFloat32(8, Endian.little));
         height_gps = byteData.getInt32(12, Endian.little) / 100.0;
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
-        if (!airspeed.isNaN && airspeed > 0 && !height_gps.isNaN) {
-          kalmanVarioTECalculator.setNewTE(airspeed, height_gps);
-          rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
-        }
         writeData(
             '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~${logRawData ? logString : ""}');
         break;
@@ -181,17 +214,10 @@ class VarioData {
         latitude = byteData.getInt32(4, Endian.little);
         longitude = byteData.getInt32(8, Endian.little);
         ground_speed = byteData.getFloat32(12, Endian.little);
-        double newYaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
-        calculateYawUpdate(newYaw);
-        if (!airspeed.isNaN && !ekfGroundSpeed.isNaN) {
-          windEstimator.estimateWind(yaw, airspeed, ekfGroundSpeed);
-          teCalculator.setNewTE(
-              airspeed - windEstimator.getKalmanWind().x, height_gps);
-
-          windCompVario.setNewValue(teCalculator.getVario());
-        }
+        yaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
+        yawUpdateTime = DateTime.now().microsecondsSinceEpoch;
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${newYaw.toStringAsFixed(4)}}~${logRawData ? logString : ""}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${yaw.toStringAsFixed(4)}}~${logRawData ? logString : ""}');
 
         break;
       case 3:
@@ -202,7 +228,6 @@ class VarioData {
             byteData.getFloat32(8, Endian.little); // wind compensated by larus
         simple_climb_rate = byteData.getFloat32(12, Endian.little);
         reading = byteData.getInt16(16, Endian.little) / 100.0;
-        simpleClimbVario.setNewValue(simple_climb_rate);
         writeData(
             '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~${logRawData ? logString : ""}');
         break;
@@ -215,12 +240,7 @@ class VarioData {
             byteData.getInt16(6, Endian.little) / 500.0,
             byteData.getInt16(8, Endian.little) / 500.0,
             byteData.getInt16(10, Endian.little) / 500.0);
-        calculateGPSSpeedUpdate();
-        gpsVario.setNewValue(gpsSpeed.z * -1.0);
-        if (!airspeed.isNaN && !gpsSpeed.z.isNaN && airspeed > 0) {
-          teSpeedCalculator.setNewTE(airspeed, gpsSpeed.z * -1);
-          rawClimbSpeedVario.setNewValue(teSpeedCalculator.getVario());
-        }
+
         writeData(
             '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~${logRawData ? logString : ""}');
         break;
@@ -240,5 +260,6 @@ class VarioData {
       default:
         break;
     }
+    processUpdate(blePacketNum);
   }
 }

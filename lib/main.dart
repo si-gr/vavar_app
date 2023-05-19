@@ -138,19 +138,21 @@ class _MyHomePageState extends State<MyHomePage> {
     varioData.gpsVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
     varioData.gpsVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
     varioData.airspeedOffset = settingsValues["airspeedOffset"]!;
+    varioData.kalmanAccFactor = settingsValues["kalmanAccFactor"]!;
     print("activating settings");
   }
 
   /// Reset settings to default values
   void resetSettings() {
     settingsValues = {
-      "airspeedOffset": -15,
+      "airspeedOffset": -4,
+      "kalmanAccFactor": 1,
       "scalingFactor": 300,
       "zeroFrequency": 250,
       "frequencyChange": 50,
       "varioOnOffChangeFactor": 15,
-      "varioOnTimeZ": 400,
-      "varioOffTimeZ": 400,
+      "varioOnTimeZ": 600,
+      "varioOffTimeZ": 600,
       "varioSoundGeneratorSampleRate": 20000,
       "circleDetectionMinTime": 5000,
       "varioVolume": 0.99,
@@ -161,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "logProcessedData": 1,
       "windFilterCovariance": 0.2,
       "msBetweenWindEstimates": 20,
-      "rawVarKalQ": 0.008,
+      "rawVarKalQ": 0.003,
       "rawVarAvgKalQ": 0.002,
       "artHorizonRollFactor": -1,
       "artHorizonPitchFactor": 1,
@@ -259,19 +261,21 @@ class _MyHomePageState extends State<MyHomePage> {
     double cycleTimeOn = settingsValues["varioOnTimeZ"]!;
     double cycleTimeOff = settingsValues["varioOffTimeZ"]!;
     int lastTime = DateTime.now().millisecondsSinceEpoch;
+    double audioVarioValue = min(currentVario.abs(), 5);  // vario is max 5 m/s for audio
     while (true) {
       await Future.delayed(
         const Duration(milliseconds: 10),
       );
-
+      audioVarioValue = min(currentVario.abs(), 5);
+      audioVarioValue = max(audioVarioValue, -4); // vario is min 0.1 m/s for audio
       cycleTimeOn = min(
           max(
               settingsValues["varioOnTimeZ"]! -
-                  (log((currentVario.abs() *
+                  (log((audioVarioValue.abs() *
                               settingsValues["varioOnOffChangeFactor"]!) +
                           1)) *
                       200 *
-                      (currentVario > 0 ? 1 : -1),
+                      (audioVarioValue > 0 ? 1 : -1),
               50),
           1000);
       cycleTimeOff = cycleTimeOn;
@@ -290,19 +294,13 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       if (varioOn == true &&
           DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOn &&
-          currentVario > 0) {
+          audioVarioValue > 0) {
         lastTime = DateTime.now().millisecondsSinceEpoch;
         varioOn = false;
         SoundGenerator.setVolume(0);
-        if (colorSwitchVario) {
-          setState(() {
-            varioColor = Colors.black;
-            warningColorIndex = 1;
-          });
-        }
       }
       SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! +
-          currentVario * settingsValues["frequencyChange"]!);
+          audioVarioValue * settingsValues["frequencyChange"]!);
     }
   }
 

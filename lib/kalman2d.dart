@@ -1,6 +1,6 @@
 import 'package:vector_math/vector_math_64.dart';
 import 'dart:math';
-
+// https://github.com/HemaZ/2d_KF/blob/main/src/kalman_filter.cpp
 class KalmanFilter {
   Vector4 x_; // state vector
   Matrix4 F_; // state transition matrix
@@ -108,8 +108,8 @@ class KalmanFilter {
           getUpper22(S4) + R_; // 2x4 * 4x4 * 4x2 + 2x2 = 2x2 in our case
       Matrix4 K4 = P_ * H_.transposed();
       Matrix2 K = getUpper22(K4) * S.invert();
-      x_ = x_ + (K * y);
-      P_ = (I_ - K * H_) * P_;
+      x_.xy = x_.xy + (K * y);
+      P_ = (I_ - K4 * H_) * P_;
       previous_ts_ = timestamp;
     }
   }

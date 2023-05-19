@@ -17,12 +17,16 @@ class Vario {
   }
 
   void setNewValue(double varioValue) {
+    setNewValueAcc(varioValue, 0);
+  }
+
+  void setNewValueAcc(double varioValue, double accelerationZ) {
     if (_varioValues.isEmpty) {
       kalman1d.setLastEstimate(varioValue);
       kalman1dAverage.setLastEstimate(varioValue);
     } else {
-      kalman1d.setNewValue(varioValue);
-      kalman1dAverage.setNewValue(varioValue);
+      kalman1d.setNewValueAcc(varioValue, accelerationZ + 9.81);
+      kalman1dAverage.setNewValueAcc(varioValue, accelerationZ + 9.81);
     }
     _varioValues.removeWhere((key, value) =>
         key < DateTime.now().microsecondsSinceEpoch - _averageTimeUs);

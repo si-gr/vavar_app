@@ -18,9 +18,13 @@ class Kalman1D {
   }
 
   void setNewValue(value) {
+    setNewValueAcc(value, 0);
+  }
+
+  void setNewValueAcc(value, acceleration) {
     double kalmanGain = errorEstimate / (errorEstimate + errorMeasure);
     double currentEstimate =
-        _lastEstimate + kalmanGain * (value - _lastEstimate);
+        _lastEstimate + kalmanGain * (acceleration + value - _lastEstimate);
     errorEstimate = (1.0 - kalmanGain) * errorEstimate +
         (_lastEstimate - currentEstimate).abs() * _q;
     _lastEstimate = currentEstimate;

@@ -85,10 +85,12 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[4])));
           varioData.height_gps = double.parse(stripNonNumeric(splittedLine[5]));
           varioData.pitch = double.parse(stripNonNumeric(splittedLine[6]));
+          /*
           varioData.kalmanVarioTECalculator
               .setNewTE(varioData.airspeed, varioData.height_gps);
           varioData.rawClimbVario
               .setNewValue(varioData.kalmanVarioTECalculator.getVario());
+              */
           break;
         case '2':
           // '2,${latitude.toStringAsFixed(6)},${longitude.toStringAsFixed(6)},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${larusWind.toString()},${yawRate.toStringAsFixed(4)}');
@@ -103,8 +105,6 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[7])),
               double.parse(stripNonNumeric(splittedLine[8])),
               double.parse(stripNonNumeric(splittedLine[9])));
-          varioData.calculateYawUpdate(
-              double.parse(stripNonNumeric(splittedLine[10])));
           break;
         case '3':
           // '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}');
@@ -131,14 +131,14 @@ class DataRestream {
           varioData.calculateGPSSpeedUpdate();
           //print("setting ${varioData.gpsSpeed.z * -1.0}");
           varioData.gpsVario.setNewValue(varioData.gpsSpeed.z * -1.0);
-          if (!varioData.gpsSpeed.z.isNaN &&
+          /*if (!varioData.gpsSpeed.z.isNaN &&
               !varioData.airspeed.isNaN &&
               varioData.airspeed > 0.0) {
             varioData.teSpeedCalculator
                 .setNewTE(varioData.airspeed, varioData.gpsSpeed.z * -1.0);
             varioData.rawClimbSpeedVario
                 .setNewValue(varioData.teSpeedCalculator.getVario());
-          }
+          }*/
           //print("gps speed z is ${varioData.gpsSpeed.z}");
           break;
         case '5':
@@ -165,5 +165,6 @@ class DataRestream {
     varioData.updateTime =
         DateTime.now().microsecondsSinceEpoch - varioData.lastUpdate;
     varioData.lastUpdate = DateTime.now().microsecondsSinceEpoch;
+    varioData.processUpdate(int.parse(splittedLine[1]));
   }
 }
