@@ -80,7 +80,7 @@ class VarioData {
   bool logRawData = true;
   bool logProcessedData = true;
   int allDataReceived =
-      4; // add 2^packet_num to this variable for each received packet
+      0; // add 2^packet_num to this variable for each received packet
 
   void setVarioAverageTime(int timeMs) {
     rawClimbVario.setAveragingTime(timeMs);
