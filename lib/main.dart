@@ -146,6 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void resetSettings() {
     settingsValues = {
       "airspeedOffset": -4,
+      "potECompensationFactor": 1,
       "kalmanAccFactor": 1,
       "scalingFactor": 300,
       "zeroFrequency": 250,
@@ -333,13 +334,13 @@ class _MyHomePageState extends State<MyHomePage> {
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
-          "as simpleclimb ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
-          "airsx ${varioData.airspeedVector.x.toStringAsFixed(1)} lwx ${varioData.larusWind.x.toStringAsFixed(1)}",
-          "airsy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
-          "airsz ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
+          "as ap ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
+          "asx ${varioData.airspeedVector.x.toStringAsFixed(1)} lwx ${varioData.larusWind.x.toStringAsFixed(1)}",
+          "asy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
+          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
         ];
-        currentVario = varioData.ardupilotWind.z;
-        averageVario = varioData.simpleClimbVario.getAverageValue();
+        currentVario = varioData.reading;
+        averageVario = settingsValues["potECompensationFactor"]! * varioData.SPEdot + varioData.SKEdot;
       } else if (buttonPressed == 2) {
         _displayText = [
           "awx ${varioData.ardupilotWind.x.toStringAsFixed(1)}",

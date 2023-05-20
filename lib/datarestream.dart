@@ -107,19 +107,19 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[9])));
           break;
         case '3':
-          // '3,${prev_raw_total_energy.toStringAsFixed(4)},${prev_simple_total_energy.toStringAsFixed(4)},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}');
+          // '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${reading.toStringAsFixed(4)},${thermability.toString()}~${logRawData ? logString : ""}');
           varioData.turnRadius = double.parse(stripNonNumeric(splittedLine[2]));
           varioData.ekfGroundSpeed = Vector2(
               double.parse(stripNonNumeric(splittedLine[3])),
               double.parse(stripNonNumeric(splittedLine[4])));
           varioData.raw_climb_rate =
               double.parse(stripNonNumeric(splittedLine[5]));
-          varioData.simple_climb_rate =
+          varioData.reading =
               double.parse(stripNonNumeric(splittedLine[6]));
-          varioData.reading = double.parse(stripNonNumeric(splittedLine[7]));
+          varioData.thermability = double.parse(stripNonNumeric(splittedLine[7]));
           break;
         case '4':
-          // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
+          // '4,${gpsSpeed.toString()},${velned.toString()},${tasstate.toString()},${height_baro.toString()}~${logRawData ? logString : ""}');
           varioData.gpsSpeed = Vector3(
               double.parse(stripNonNumeric(splittedLine[2])),
               double.parse(stripNonNumeric(splittedLine[3])),
@@ -128,9 +128,11 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[5])),
               double.parse(stripNonNumeric(splittedLine[6])),
               double.parse(stripNonNumeric(splittedLine[7])));
-          varioData.calculateGPSSpeedUpdate();
+          varioData.tasstate = double.parse(stripNonNumeric(splittedLine[8]));
+          varioData.height_baro = double.parse(stripNonNumeric(splittedLine[9]));
+          //varioData.calculateGPSSpeedUpdate();
           //print("setting ${varioData.gpsSpeed.z * -1.0}");
-          varioData.gpsVario.setNewValue(varioData.gpsSpeed.z * -1.0);
+          //varioData.gpsVario.setNewValue(varioData.gpsSpeed.z * -1.0);
           /*if (!varioData.gpsSpeed.z.isNaN &&
               !varioData.airspeed.isNaN &&
               varioData.airspeed > 0.0) {
@@ -142,7 +144,7 @@ class DataRestream {
           //print("gps speed z is ${varioData.gpsSpeed.z}");
           break;
         case '5':
-          // '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}');
+          // '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${SPEdot.toString()},${SKEdot.toString()},${gpsStatus.toString()}~${logRawData ? logString : ""}');
           varioData.acceleration = Vector3(
               double.parse(stripNonNumeric(splittedLine[2])),
               double.parse(stripNonNumeric(splittedLine[3])),
@@ -150,8 +152,9 @@ class DataRestream {
           varioData.batteryVoltage =
               double.parse(stripNonNumeric(splittedLine[5]));
           varioData.gpsTime = int.parse(stripNonNumeric(splittedLine[6]));
-          varioData.presTemp = double.parse(stripNonNumeric(splittedLine[7]));
-          varioData.gpsStatus = int.parse(stripNonNumeric(splittedLine[8]));
+          varioData.SPEdot = double.parse(stripNonNumeric(splittedLine[7]));
+          varioData.SKEdot = double.parse(stripNonNumeric(splittedLine[8]));
+          varioData.gpsStatus = int.parse(stripNonNumeric(splittedLine[9]));
 
           break;
         default:

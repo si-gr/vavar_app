@@ -27,7 +27,6 @@ class VarioData {
   int longitude = 0;
   double batteryVoltage = 0;
   int gpsTime = 0;
-  double presTemp = 0;
   int gpsStatus = -5;
   double turnRadius = 0;
   Vector2 ekfGroundSpeed = Vector2(0, 0);
@@ -37,6 +36,7 @@ class VarioData {
   double yaw = 0;
   int yawUpdateTime = 0;
   double oldYaw = 0;
+  int smoothedClimbRate = 0;
 
   double yawRate = 0; // yaw per second
   int lastYawUpdate = 0; // time in uws of last yaw update
@@ -45,9 +45,13 @@ class VarioData {
   int yawRateOverLimitCounter = 0; // counter for how many ms
 
   double raw_climb_rate = 0;
-  double simple_climb_rate = 0;
+  double thermability = 0;
   double reading = 0;
   double airspeedOffset = -4;
+  double height_baro = 0;
+  double tasstate = 0;
+  double SPEdot = 0;
+  double SKEdot = 0;
 
   double kalmanAccFactor = 1;
 
@@ -168,12 +172,12 @@ class VarioData {
 
         //windCompVario.setNewValue(teCalculator.getVario());
 
-        simpleClimbVario.setNewValue(simple_climb_rate);
+        simpleClimbVario.setNewValue(reading);
         calculateGPSSpeedUpdate();
         gpsVario.setNewValue(gpsSpeed.z * -1.0);
         teSpeedCalculator.setNewTE(airspeed, gpsSpeed.z * -1);
         rawClimbSpeedVario.setNewValueAcc(teSpeedCalculator.getVario(),
-            kalmanAccFactor * (acceleration.z + acceleration.x * sin(roll)));
+            kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
       }
     }
   }
@@ -217,7 +221,7 @@ class VarioData {
         yaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         yawUpdateTime = DateTime.now().microsecondsSinceEpoch;
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${yaw.toStringAsFixed(4)}}~${logRawData ? logString : ""}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)}~${logRawData ? logString : ""}');
 
         break;
       case 3:
@@ -226,10 +230,10 @@ class VarioData {
             byteData.getInt16(6, Endian.little) / 500.0);
         raw_climb_rate =
             byteData.getFloat32(8, Endian.little); // wind compensated by larus
-        simple_climb_rate = byteData.getFloat32(12, Endian.little);
-        reading = byteData.getInt16(16, Endian.little) / 100.0;
+        reading = (byteData.getInt16(12, Endian.little)).toDouble() / 1000.0;
+        thermability = byteData.getFloat32(14, Endian.little);
         writeData(
-            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${simple_climb_rate.toStringAsFixed(4)},${reading.toString()}~${logRawData ? logString : ""}');
+            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${reading.toStringAsFixed(4)},${thermability.toString()}~${logRawData ? logString : ""}');
         break;
       case 4:
         gpsSpeed = Vector3(
@@ -240,9 +244,10 @@ class VarioData {
             byteData.getInt16(6, Endian.little) / 500.0,
             byteData.getInt16(8, Endian.little) / 500.0,
             byteData.getInt16(10, Endian.little) / 500.0);
-
+        tasstate = byteData.getInt16(12, Endian.little).toDouble() / 100.0;
+        height_baro = byteData.getFloat32(14, Endian.little);
         writeData(
-            '4,${gpsSpeed.toString()},${velned.toString()},${gpsSpeed.angleTo(Vector3(0, 0, 0))}~${logRawData ? logString : ""}');
+            '4,${gpsSpeed.toString()},${velned.toString()},${tasstate.toString()},${height_baro.toString()}~${logRawData ? logString : ""}');
         break;
       case 5:
         acceleration = Vector3(
@@ -252,10 +257,11 @@ class VarioData {
 
         batteryVoltage = byteData.getInt16(6, Endian.little) / 100.0;
         gpsTime = byteData.getUint32(8, Endian.little);
-        presTemp = byteData.getFloat32(12, Endian.little);
+        SPEdot = byteData.getInt16(12, Endian.little).toDouble() / 1000.0;
+        SKEdot = byteData.getInt16(14, Endian.little).toDouble() / 1000.0;
         gpsStatus = byteData.getInt16(16, Endian.little);
         writeData(
-            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${presTemp.toStringAsFixed(4)},${gpsStatus.toString()}~${logRawData ? logString : ""}');
+            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${SPEdot.toString()},${SKEdot.toString()},${gpsStatus.toString()}~${logRawData ? logString : ""}');
         break;
       default:
         break;
