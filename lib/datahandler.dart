@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:ui';
+import 'package:ble_larus_android/apWindStore.dart';
 import 'package:ble_larus_android/teSpeedCalculator.dart';
 import 'package:ble_larus_android/tecalculator.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
@@ -52,8 +53,10 @@ class VarioData {
   double tasstate = 0;
   double SPEdot = 0;
   double SKEdot = 0;
+  APWindStore windStore = APWindStore(rollingWindowSize: 10);
 
   double kalmanAccFactor = 1;
+  double varioSpeedFactor = 1;
 
   Vario rawClimbVario = Vario(30000);
   Vario simpleClimbVario = Vario(30000);
@@ -157,7 +160,7 @@ class VarioData {
       allDataReceived += pow(2, blePacketNum).toInt();
     } else if (allDataReceived == 63) {
       if (blePacketNum == 1) {
-        kalmanVarioTECalculator.setNewTE(airspeed, height_gps);
+        kalmanVarioTECalculator.setNewTE(varioSpeedFactor * airspeed, height_gps);
         //print("kalman var ${kalmanVarioTECalculator.getVario()} h ${height_gps} a ${airspeed}");
         rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
       }
@@ -175,9 +178,12 @@ class VarioData {
         simpleClimbVario.setNewValue(reading);
         calculateGPSSpeedUpdate();
         gpsVario.setNewValue(gpsSpeed.z * -1.0);
-        teSpeedCalculator.setNewTE(airspeed, gpsSpeed.z * -1);
+        teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, gpsSpeed.z * -1);
         rawClimbSpeedVario.setNewValueAcc(teSpeedCalculator.getVario(),
             kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
+      } else if (blePacketNum == 1) {
+        // new wind
+        windStore.update(ardupilotWind);
       }
     }
   }
@@ -251,14 +257,14 @@ class VarioData {
         break;
       case 5:
         acceleration = Vector3(
-            byteData.getInt16(0, Endian.little) / 1000.0,
-            byteData.getInt16(2, Endian.little) / 1000.0,
-            byteData.getInt16(4, Endian.little) / 1000.0);
+            byteData.getInt16(0, Endian.little) / 50.0,
+            byteData.getInt16(2, Endian.little) / 50.0,
+            byteData.getInt16(4, Endian.little) / 50.0);
 
         batteryVoltage = byteData.getInt16(6, Endian.little) / 100.0;
         gpsTime = byteData.getUint32(8, Endian.little);
-        SPEdot = byteData.getInt16(12, Endian.little).toDouble() / 1000.0;
-        SKEdot = byteData.getInt16(14, Endian.little).toDouble() / 1000.0;
+        SPEdot = (byteData.getInt16(12, Endian.little).toDouble() / 50.0) / 9.81 * -1;
+        SKEdot = (byteData.getInt16(14, Endian.little).toDouble() / 50.0) / 9.81 * -1;
         gpsStatus = byteData.getInt16(16, Endian.little);
         writeData(
             '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${SPEdot.toString()},${SKEdot.toString()},${gpsStatus.toString()}~${logRawData ? logString : ""}');

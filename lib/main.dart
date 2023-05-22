@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:ffi';
 import 'dart:math';
 
+import 'package:ble_larus_android/apWindStore.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
@@ -139,6 +140,8 @@ class _MyHomePageState extends State<MyHomePage> {
     varioData.gpsVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
     varioData.airspeedOffset = settingsValues["airspeedOffset"]!;
     varioData.kalmanAccFactor = settingsValues["kalmanAccFactor"]!;
+    varioData.varioSpeedFactor = settingsValues["varioSpeedFactor"]!;
+    varioData.windStore = APWindStore(rollingWindowSize: settingsValues["windRollingWindowSize"]!.toInt());
     print("activating settings");
   }
 
@@ -168,6 +171,8 @@ class _MyHomePageState extends State<MyHomePage> {
       "rawVarAvgKalQ": 0.002,
       "artHorizonRollFactor": -1,
       "artHorizonPitchFactor": 1,
+      "varioSpeedFactor": 1,
+      "windRollingWindowSize": 10,
     };
   }
 
@@ -384,9 +389,8 @@ class _MyHomePageState extends State<MyHomePage> {
         //print(
         //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
       } else if (windButtonPressed == 1) {
-        wind1Rotation =
-            varioData.windEstimator.lastWindEstimate.angleTo(Vector2(1, 0));
-        wind2Rotation = varioData.ardupilotWind.angleTo(Vector3(1, 0, 0));
+        wind1Rotation = -1 * (varioData.windStore.windAverage.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
+        wind2Rotation = -1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
       } else if (windButtonPressed == 2) {
         wind2Rotation =
             varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
