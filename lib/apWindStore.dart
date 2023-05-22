@@ -4,7 +4,7 @@ class APWindStore{
   List<Vector3> windRollingWindow = [];
   Vector3 windAverage = Vector3(0, 0, 0);
   Vector3 currentWindChange = Vector3(0, 0, 0);
-  int rollingWindowSize = 10;
+  int rollingWindowSize = 40;
 
   APWindStore({required this.rollingWindowSize});
 

@@ -172,7 +172,8 @@ class _MyHomePageState extends State<MyHomePage> {
       "artHorizonRollFactor": -1,
       "artHorizonPitchFactor": 1,
       "varioSpeedFactor": 1,
-      "windRollingWindowSize": 10,
+      "windRollingWindowSize": 40,
+      "windChangeIndicatorMult": 2,
     };
   }
 
@@ -390,7 +391,7 @@ class _MyHomePageState extends State<MyHomePage> {
         //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
       } else if (windButtonPressed == 1) {
         wind1Rotation = -1 * (varioData.windStore.windAverage.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
-        wind2Rotation = -1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
+        wind2Rotation = -1 * (settingsValues["windChangeIndicatorMult"]! * varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
       } else if (windButtonPressed == 2) {
         wind2Rotation =
             varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
