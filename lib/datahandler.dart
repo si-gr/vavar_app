@@ -179,7 +179,7 @@ class VarioData {
         simpleClimbVario.setNewValue(reading);
         calculateGPSSpeedUpdate();
         gpsVario.setNewValue(gpsSpeed.z * -1.0);
-        teSpeedCalculator.setNewTE(varioSpeedFactor * tasstate, gpsSpeed.z * -1);
+        teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, gpsSpeed.z * -1);
         rawClimbSpeedVario.setNewValueAcc(teSpeedCalculator.getVario(),
             kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
       } else if (blePacketNum == 1) {

@@ -611,7 +611,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           child: Icon(
                             Icons.keyboard_backspace_rounded,
                             color: Color.fromARGB(255, 255, 156, 156),
-                            size: settingsValues["scalingFactor"]! * 0.6 * windRatio,
+                            size: settingsValues["scalingFactor"]! * 0.6 * min(windRatio, 1.1),
                           ))),
                   Container(
                     child: Text(
@@ -625,7 +625,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: settingsValues["scalingFactor"]!,
                     alignment: const Alignment(0.9, 0),
                     child: Text(
-                      'AS ${((varioData.tasstate) * 3.6).toStringAsFixed(1)} km/h',
+                      'AS ${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
                       style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.right,
                     ),
