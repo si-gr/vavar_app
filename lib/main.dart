@@ -101,6 +101,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double averageVario = 0;
   double wind1Rotation = 0;
   double wind2Rotation = 0;
+  double windRatio = 1;
   // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
@@ -340,7 +341,7 @@ class _MyHomePageState extends State<MyHomePage> {
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
-          "as ap ${((varioData.airspeed) * 3.6).toString().substring(0, 4)}",
+          "as ap ${((varioData.airspeed) * 3.6).toString().substring(0, 4)} tas ${((varioData.tasstate) * 3.6).toString().substring(0, 4)}",
           "asx ${varioData.airspeedVector.x.toStringAsFixed(1)} lwx ${varioData.larusWind.x.toStringAsFixed(1)}",
           "asy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
           "az ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
@@ -362,16 +363,16 @@ class _MyHomePageState extends State<MyHomePage> {
           "turn radius ${varioData.turnRadius.toStringAsFixed(1)} vx ${(varioData.velned.x).toStringAsFixed(1)}",
           "climb ${varioData.raw_climb_rate.toStringAsFixed(1)} vy ${(varioData.velned.y).toStringAsFixed(1)}",
           "rd ${varioData.reading.toString()} vz ${(varioData.velned.z).toStringAsFixed(1)}",
-          "mywindcomp"
+          "fastVario and rawavg"
         ];
-        currentVario = varioData.windCompVario.getCurrentValue();
-        averageVario = varioData.windCompVario.getAverageValue();
+        currentVario = varioData.fastVario;
+        averageVario = varioData.rawClimbSpeedVario.getAverageValue();
       } else if (buttonPressed == 4) {
         _displayText = [
           "gx ${(varioData.gpsSpeed.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
           "gy ${(varioData.gpsSpeed.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
           "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
-          "gps speed rcvar"
+          "raw climb speed"
         ];
         currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
         averageVario = varioData.rawClimbSpeedVario.getAverageValue();
@@ -391,7 +392,8 @@ class _MyHomePageState extends State<MyHomePage> {
         //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
       } else if (windButtonPressed == 1) {
         wind1Rotation = -1 * (varioData.windStore.windAverage.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
-        wind2Rotation = -1 * (settingsValues["windChangeIndicatorMult"]! * varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
+        wind2Rotation = -1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
+        windRatio = settingsValues["windChangeIndicatorMult"]! * varioData.windStore.currentWindChange.length / varioData.windStore.windAverage.length;
       } else if (windButtonPressed == 2) {
         wind2Rotation =
             varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
@@ -597,7 +599,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           height: settingsValues["scalingFactor"]!,
                           child: Icon(
                             Icons.keyboard_backspace_rounded,
-                            color: const Color.fromARGB(255, 162, 223, 255),
+                            color: Color.fromARGB(255, 172, 226, 255),
                             size: settingsValues["scalingFactor"]! * 0.6,
                           ))),
                   Transform(
@@ -608,8 +610,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           height: settingsValues["scalingFactor"]!,
                           child: Icon(
                             Icons.keyboard_backspace_rounded,
-                            color: const Color.fromARGB(255, 141, 141, 141),
-                            size: settingsValues["scalingFactor"]! * 0.6,
+                            color: Color.fromARGB(255, 255, 156, 156),
+                            size: settingsValues["scalingFactor"]! * 0.6 * windRatio,
                           ))),
                   Container(
                     child: Text(
@@ -621,9 +623,19 @@ class _MyHomePageState extends State<MyHomePage> {
                   Container(
                     width: settingsValues["scalingFactor"]!,
                     height: settingsValues["scalingFactor"]!,
+                    alignment: const Alignment(0.9, 0),
+                    child: Text(
+                      'AS ${((varioData.tasstate) * 3.6).toStringAsFixed(1)} km/h',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Container(
+                    width: settingsValues["scalingFactor"]!,
+                    height: settingsValues["scalingFactor"]!,
                     alignment: const Alignment(0.7, -0.3),
                     child: Text(
-                      '${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                      'W ${((varioData.windStore.windAverage.length) * 3.6).toStringAsFixed(1)} km/h',
                       style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.right,
                     ),

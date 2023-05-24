@@ -67,6 +67,7 @@ class VarioData {
   TECalculator kalmanVarioTECalculator = TECalculator();
   TESpeedCalculator teSpeedCalculator = TESpeedCalculator();
   Vario rawClimbSpeedVario = Vario(30000);
+  double fastVario = 0;
 
   Vector3 gpsSpeed = Vector3(0, 0, 0);
 
@@ -178,7 +179,7 @@ class VarioData {
         simpleClimbVario.setNewValue(reading);
         calculateGPSSpeedUpdate();
         gpsVario.setNewValue(gpsSpeed.z * -1.0);
-        teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, gpsSpeed.z * -1);
+        teSpeedCalculator.setNewTE(varioSpeedFactor * tasstate, gpsSpeed.z * -1);
         rawClimbSpeedVario.setNewValueAcc(teSpeedCalculator.getVario(),
             kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
       } else if (blePacketNum == 1) {
@@ -198,6 +199,7 @@ class VarioData {
     for (int datItem in data) {
       logString += "$datItem,";
     }
+    fastVario = byteData.getInt8(18).toDouble() / 25.0;
     switch (blePacketNum) {
       case 0:
         airspeed = byteData.getFloat32(0, Endian.little) + airspeedOffset;
