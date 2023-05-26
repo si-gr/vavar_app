@@ -35,6 +35,7 @@ class VarioData {
   double ground_course = 0;
 
   double yaw = 0;
+  double windCorrection = 0;
   int yawUpdateTime = 0;
   double oldYaw = 0;
   int smoothedClimbRate = 0;
@@ -209,7 +210,7 @@ class VarioData {
             byteData.getFloat32(12, Endian.little));
         roll = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         writeData(
-            '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)}~${logRawData ? logString : ""}');
+            '0,${airspeed.toStringAsFixed(4)},${airspeedVector.toString()},${roll.toStringAsFixed(4)},${fastVario.toString()}~${logRawData ? logString : ""}');
         break;
       case 1:
         ardupilotWind = Vector3(
@@ -219,7 +220,7 @@ class VarioData {
         height_gps = byteData.getInt32(12, Endian.little) / 100.0;
         pitch = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         writeData(
-            '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}~${logRawData ? logString : ""}');
+            '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)},${fastVario.toString()}~${logRawData ? logString : ""}');
         break;
       case 2:
         ground_course = byteData.getFloat32(0, Endian.little);
@@ -229,7 +230,7 @@ class VarioData {
         yaw = byteData.getInt16(16, Endian.little) / 0x8000 * pi;
         yawUpdateTime = DateTime.now().microsecondsSinceEpoch;
         writeData(
-            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)}~${logRawData ? logString : ""}');
+            '2,${latitude.toString()},${longitude.toString()},${ground_speed.toStringAsFixed(4)},${ground_course.toStringAsFixed(4)},${yaw.toStringAsFixed(4)},${fastVario.toString()}~${logRawData ? logString : ""}');
 
         break;
       case 3:
@@ -241,7 +242,7 @@ class VarioData {
         reading = (byteData.getInt16(12, Endian.little)).toDouble() / 1000.0;
         thermability = byteData.getFloat32(14, Endian.little);
         writeData(
-            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${reading.toStringAsFixed(4)},${thermability.toString()}~${logRawData ? logString : ""}');
+            '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${reading.toStringAsFixed(4)},${thermability.toString()},${fastVario.toString()}~${logRawData ? logString : ""}');
         break;
       case 4:
         gpsSpeed = Vector3(
@@ -255,7 +256,7 @@ class VarioData {
         tasstate = byteData.getInt16(12, Endian.little).toDouble() / 100.0;
         height_baro = byteData.getFloat32(14, Endian.little);
         writeData(
-            '4,${gpsSpeed.toString()},${velned.toString()},${tasstate.toString()},${height_baro.toString()}~${logRawData ? logString : ""}');
+            '4,${gpsSpeed.toString()},${velned.toString()},${tasstate.toString()},${height_baro.toString()},${fastVario.toString()}~${logRawData ? logString : ""}');
         break;
       case 5:
         acceleration = Vector3(
@@ -269,8 +270,47 @@ class VarioData {
         SKEdot = (byteData.getInt16(14, Endian.little).toDouble() / 50.0) / 9.81 * -1;
         gpsStatus = byteData.getInt16(16, Endian.little);
         writeData(
-            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${SPEdot.toString()},${SKEdot.toString()},${gpsStatus.toString()}~${logRawData ? logString : ""}');
+            '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${SPEdot.toString()},${SKEdot.toString()},${gpsStatus.toString()},${fastVario.toString()}~${logRawData ? logString : ""}');
         break;
+      case 10:
+      /*
+      _fast_larus_variables.wind_vector_x = (int16_t)(wind.x * 500.0);
+    _fast_larus_variables.wind_vector_y = (int16_t)(wind.y * 500.0);
+    _fast_larus_variables.windCorrection = (int16_t)(windCorrection * 500.0);
+    _fast_larus_variables.airspeed = (int16_t)(aspd * 500.0);
+    _fast_larus_variables.spedot = (int16_t)(_tecs->getSPEdot() * 50);
+    _fast_larus_variables.skedot = (int16_t)(_tecs->getSKEdot() * 50);
+    _fast_larus_variables.roll = (int16_t)((_ahrs.roll / M_PI) * (float)(0x8000));
+    _fast_larus_variables.pitch = (int16_t)((_ahrs.pitch / M_PI) * (float)(0x8000));
+      */
+      ardupilotWind = Vector3(
+          byteData.getInt16(0, Endian.little).toDouble() / 500.0,
+          byteData.getInt16(2, Endian.little).toDouble() / 500.0, 0);
+      windCorrection = byteData.getInt16(4, Endian.little).toDouble() / 500.0;
+      airspeed = byteData.getInt16(6, Endian.little).toDouble() / 500.0;
+      SPEdot = byteData.getInt16(8, Endian.little).toDouble() / 50.0;
+      SKEdot = byteData.getInt16(10, Endian.little).toDouble() / 50.0;
+      roll = byteData.getInt16(12, Endian.little) / 0x8000 * pi;
+      pitch = byteData.getInt16(14, Endian.little) / 0x8000 * pi;
+      writeData(
+            '10,${ardupilotWind.toString()},${windCorrection.toString()},${airspeed.toString()},${SPEdot.toString()},${SKEdot.toString()},${roll.toString()},${pitch.toString()}~${logRawData ? logString : ""}');
+        
+      break;
+      case 20:
+      /*
+      _slow_larus_variables.battery_voltage = roundf(AP::battery().voltage() * 100.0f);   // 2B
+    _slow_larus_variables.height_gps = _loc.alt;   // 4B
+    _slow_larus_variables.turn_radius = thermallingRadius;
+      */
+      
+        batteryVoltage = byteData.getInt16(0, Endian.little) / 100.0;
+        height_gps = byteData.getInt32(2, Endian.little) / 100.0;
+        turnRadius = byteData.getFloat32(6, Endian.little);
+writeData(
+            '20,${batteryVoltage.toString()},${height_gps.toString()},${turnRadius.toString()}~${logRawData ? logString : ""}');
+       
+      break;
+
       default:
         break;
     }
