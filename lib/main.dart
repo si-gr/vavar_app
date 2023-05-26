@@ -346,8 +346,8 @@ class _MyHomePageState extends State<MyHomePage> {
           "asy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
           "az ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
         ];
-        currentVario = varioData.reading;
-        averageVario = settingsValues["potECompensationFactor"]! * varioData.SPEdot + varioData.SKEdot;
+        averageVario = varioData.reading;
+        currentVario = settingsValues["potECompensationFactor"]! * varioData.SPEdot + varioData.SKEdot;
       } else if (buttonPressed == 2) {
         _displayText = [
           "awx ${varioData.ardupilotWind.x.toStringAsFixed(1)}",
