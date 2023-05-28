@@ -142,7 +142,8 @@ class _MyHomePageState extends State<MyHomePage> {
     varioData.airspeedOffset = settingsValues["airspeedOffset"]!;
     varioData.kalmanAccFactor = settingsValues["kalmanAccFactor"]!;
     varioData.varioSpeedFactor = settingsValues["varioSpeedFactor"]!;
-    varioData.windStore = APWindStore(rollingWindowSize: settingsValues["windRollingWindowSize"]!.toInt());
+    varioData.windStore = APWindStore(
+        rollingWindowSize: settingsValues["windRollingWindowSize"]!.toInt());
     print("activating settings");
   }
 
@@ -151,6 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
     settingsValues = {
       "airspeedOffset": -4,
       "potECompensationFactor": 1,
+      "kinECompensationFactor": 1,
       "kalmanAccFactor": 1,
       "scalingFactor": 300,
       "zeroFrequency": 250,
@@ -269,13 +271,15 @@ class _MyHomePageState extends State<MyHomePage> {
     double cycleTimeOn = settingsValues["varioOnTimeZ"]!;
     double cycleTimeOff = settingsValues["varioOffTimeZ"]!;
     int lastTime = DateTime.now().millisecondsSinceEpoch;
-    double audioVarioValue = min(currentVario.abs(), 5);  // vario is max 5 m/s for audio
+    double audioVarioValue =
+        min(currentVario.abs(), 5); // vario is max 5 m/s for audio
     while (true) {
       await Future.delayed(
         const Duration(milliseconds: 10),
       );
       audioVarioValue = min(currentVario.abs(), 5);
-      audioVarioValue = max(audioVarioValue, -4); // vario is min 0.1 m/s for audio
+      audioVarioValue =
+          max(audioVarioValue, -4); // vario is min 0.1 m/s for audio
       cycleTimeOn = min(
           max(
               settingsValues["varioOnTimeZ"]! -
@@ -341,13 +345,15 @@ class _MyHomePageState extends State<MyHomePage> {
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
-          "as ap ${((varioData.airspeed) * 3.6).toString().substring(0, 4)} tas ${((varioData.tasstate) * 3.6).toString().substring(0, 4)}",
-          "asx ${varioData.airspeedVector.x.toStringAsFixed(1)} lwx ${varioData.larusWind.x.toStringAsFixed(1)}",
-          "asy ${varioData.airspeedVector.y.toStringAsFixed(1)} lwy ${varioData.larusWind.y.toStringAsFixed(1)}",
-          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} lwz ${varioData.larusWind.z.toStringAsFixed(1)}"
+          "as ap ${((varioData.airspeed) * 3.6).toStringAsFixed(4)} tas ${((varioData.tasstate) * 3.6).toStringAsFixed(4)}",
+          "asx ${varioData.airspeedVector.x.toStringAsFixed(1)}",
+          "asy ${varioData.airspeedVector.y.toStringAsFixed(1)}",
+          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} FastVario SPEDot + SKEDot"
         ];
-        averageVario = varioData.reading;
-        currentVario = settingsValues["potECompensationFactor"]! * varioData.SPEdot + varioData.SKEdot;
+        averageVario = varioData.fastVario;
+        currentVario =
+            settingsValues["potECompensationFactor"]! * varioData.SPEdot +
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot;
       } else if (buttonPressed == 2) {
         _displayText = [
           "awx ${varioData.ardupilotWind.x.toStringAsFixed(1)}",
@@ -391,9 +397,17 @@ class _MyHomePageState extends State<MyHomePage> {
         //print(
         //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
       } else if (windButtonPressed == 1) {
-        wind1Rotation = -1 * (varioData.windStore.windAverage.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
-        wind2Rotation = -1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi);
-        windRatio = settingsValues["windChangeIndicatorMult"]! * varioData.windStore.currentWindChange.length / varioData.windStore.windAverage.length;
+        wind1Rotation = -1 *
+            (varioData.windStore.windAverage.xy
+                    .angleToSigned(varioData.gpsSpeed.xy) +
+                pi);
+        wind2Rotation = -1 *
+            (varioData.windStore.currentWindChange.xy
+                    .angleToSigned(varioData.gpsSpeed.xy) +
+                pi);
+        windRatio = settingsValues["windChangeIndicatorMult"]! *
+            varioData.windStore.currentWindChange.length /
+            varioData.windStore.windAverage.length;
       } else if (windButtonPressed == 2) {
         wind2Rotation =
             varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
@@ -611,7 +625,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           child: Icon(
                             Icons.keyboard_backspace_rounded,
                             color: Color.fromARGB(255, 255, 156, 156),
-                            size: settingsValues["scalingFactor"]! * 0.6 * min(windRatio, 1.1),
+                            size: settingsValues["scalingFactor"]! *
+                                0.6 *
+                                min(windRatio, 1.1),
                           ))),
                   Container(
                     child: Text(

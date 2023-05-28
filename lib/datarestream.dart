@@ -76,6 +76,7 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[4])),
               double.parse(stripNonNumeric(splittedLine[5])));
           varioData.roll = double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.fastVario = double.parse(stripNonNumeric(splittedLine[7]));
           break;
         case '1':
           // '1,${ardupilotWind.toString()},${height_gps.toStringAsFixed(4)},${pitch.toStringAsFixed(4)}');
@@ -85,6 +86,7 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[4])));
           varioData.height_gps = double.parse(stripNonNumeric(splittedLine[5]));
           varioData.pitch = double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.fastVario = double.parse(stripNonNumeric(splittedLine[7]));
           /*
           varioData.kalmanVarioTECalculator
               .setNewTE(varioData.airspeed, varioData.height_gps);
@@ -101,10 +103,7 @@ class DataRestream {
           varioData.ground_course =
               double.parse(stripNonNumeric(splittedLine[5]));
           varioData.yaw = double.parse(stripNonNumeric(splittedLine[6]));
-          varioData.larusWind = Vector3(
-              double.parse(stripNonNumeric(splittedLine[7])),
-              double.parse(stripNonNumeric(splittedLine[8])),
-              double.parse(stripNonNumeric(splittedLine[9])));
+          varioData.fastVario = double.parse(stripNonNumeric(splittedLine[7]));
           break;
         case '3':
           // '3,${turnRadius.toStringAsFixed(4)},${ekfGroundSpeed.toString()},${raw_climb_rate.toStringAsFixed(4)},${reading.toStringAsFixed(4)},${thermability.toString()}~${logRawData ? logString : ""}');
@@ -114,9 +113,10 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[4])));
           varioData.raw_climb_rate =
               double.parse(stripNonNumeric(splittedLine[5]));
-          varioData.reading =
-              double.parse(stripNonNumeric(splittedLine[6]));
-          varioData.thermability = double.parse(stripNonNumeric(splittedLine[7]));
+          varioData.reading = double.parse(stripNonNumeric(splittedLine[6]));
+          varioData.thermability =
+              double.parse(stripNonNumeric(splittedLine[7]));
+          varioData.fastVario = double.parse(stripNonNumeric(splittedLine[8]));
           break;
         case '4':
           // '4,${gpsSpeed.toString()},${velned.toString()},${tasstate.toString()},${height_baro.toString()}~${logRawData ? logString : ""}');
@@ -129,7 +129,9 @@ class DataRestream {
               double.parse(stripNonNumeric(splittedLine[6])),
               double.parse(stripNonNumeric(splittedLine[7])));
           varioData.tasstate = double.parse(stripNonNumeric(splittedLine[8]));
-          varioData.height_baro = double.parse(stripNonNumeric(splittedLine[9]));
+          varioData.height_baro =
+              double.parse(stripNonNumeric(splittedLine[9]));
+          varioData.fastVario = double.parse(stripNonNumeric(splittedLine[10]));
           //varioData.calculateGPSSpeedUpdate();
           //print("setting ${varioData.gpsSpeed.z * -1.0}");
           //varioData.gpsVario.setNewValue(varioData.gpsSpeed.z * -1.0);
@@ -155,6 +157,7 @@ class DataRestream {
           varioData.SPEdot = double.parse(stripNonNumeric(splittedLine[7]));
           varioData.SKEdot = double.parse(stripNonNumeric(splittedLine[8]));
           varioData.gpsStatus = int.parse(stripNonNumeric(splittedLine[9]));
+          varioData.fastVario = double.parse(stripNonNumeric(splittedLine[10]));
 
           break;
         default:
