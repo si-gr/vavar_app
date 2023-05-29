@@ -77,8 +77,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
   VarioData varioData = VarioData();
-  int buttonPressed = 0;
-  int windButtonPressed = 0;
+  int buttonPressed = 1;
+  int windButtonPressed = 1;
   Map<String, double> settingsValues = {};
   bool isPlaying = false;
   bool colorSwitchVario = false;
@@ -153,6 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "airspeedOffset": -4,
       "potECompensationFactor": 1,
       "kinECompensationFactor": 1,
+      "fastVarioFactor": 1,
       "kalmanAccFactor": 1,
       "scalingFactor": 300,
       "zeroFrequency": 250,
@@ -337,7 +338,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _displayText = [
           "lat ${varioData.latitude.toString()}",
           "lon ${varioData.longitude.toString()}",
-          "alt ${varioData.height_gps.toString()}",
+          "alt ${varioData.height_gps.toStringAsFixed(1)}",
           "raw climb"
         ];
         currentVario = varioData.rawClimbVario.getFilteredVario();
@@ -345,24 +346,26 @@ class _MyHomePageState extends State<MyHomePage> {
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
-          "as ap ${((varioData.airspeed) * 3.6).toStringAsFixed(4)} tas ${((varioData.tasstate) * 3.6).toStringAsFixed(4)}",
-          "asx ${varioData.airspeedVector.x.toStringAsFixed(1)}",
-          "asy ${varioData.airspeedVector.y.toStringAsFixed(1)}",
-          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} FastVario SPEDot + SKEDot"
+          "vz ${(varioData.velned.z).toStringAsFixed(1)}",
+          "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
+          "alt ${varioData.height_gps.toStringAsFixed(1)}",
+          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} tecs / fastvario"
         ];
-        averageVario = varioData.fastVario;
+        averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
         currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
                 settingsValues["kinECompensationFactor"]! * varioData.SKEdot;
       } else if (buttonPressed == 2) {
         _displayText = [
-          "awx ${varioData.ardupilotWind.x.toStringAsFixed(1)}",
-          "awy ${varioData.ardupilotWind.y.toStringAsFixed(1)}",
-          "awz ${varioData.ardupilotWind.z.toStringAsFixed(1)}",
-          "gps vario"
+          "vz ${(varioData.velned.z).toStringAsFixed(1)}",
+          "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
+          "alt ${varioData.height_gps.toStringAsFixed(1)}",
+          "fastvario / tecs"
         ];
-        currentVario = varioData.gpsVario.getFilteredVario();
-        averageVario = varioData.gpsVario.getFilteredAverageVario();
+        currentVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
+        averageVario =
+            settingsValues["potECompensationFactor"]! * varioData.SPEdot +
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot;
       } else if (buttonPressed == 3) {
         // Cloud Button
         _displayText = [
@@ -641,7 +644,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: settingsValues["scalingFactor"]!,
                     alignment: const Alignment(0.9, 0),
                     child: Text(
-                      'AS ${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                      'AS ${((varioData.tasstate) * 3.6).toStringAsFixed(1)} km/h',
                       style: Theme.of(context).textTheme.bodyMedium,
                       textAlign: TextAlign.right,
                     ),
