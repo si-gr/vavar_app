@@ -278,9 +278,9 @@ class _MyHomePageState extends State<MyHomePage> {
       await Future.delayed(
         const Duration(milliseconds: 10),
       );
-      audioVarioValue = min(currentVario.abs(), 5);
+      audioVarioValue = min(currentVario, 5);
       audioVarioValue =
-          max(audioVarioValue, -4); // vario is min 0.1 m/s for audio
+          max(audioVarioValue, -5); // vario is min 0.1 m/s for audio
       cycleTimeOn = min(
           max(
               settingsValues["varioOnTimeZ"]! -
