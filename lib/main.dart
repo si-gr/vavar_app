@@ -94,6 +94,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double rollAngle = 0;
   double targetMinRoll = 40;
   Color currentVarioColor = Colors.green;
+  double scalingFactor = 300;
 
   double horizonPitch = 0;
   double currentVario = 0;
@@ -578,8 +579,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Stack(children: [
                   Image(
                     image: const AssetImage("assets/vario_background.png"),
-                    width: settingsValues["scalingFactor"]!,
-                    height: settingsValues["scalingFactor"]!,
+                    width: scalingFactor,
+                    height: scalingFactor,
                     alignment: Alignment.centerRight,
                   ),
                   //Transform(transform: Matrix4.rotationZ((currentVario.isFinite ? currentVario : 0.0) / 10.0 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_current.png"), width: scaling_factor, height: scaling_factor,)),
@@ -592,8 +593,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       alignment: FractionalOffset.center,
                       child: Image(
                         image: const AssetImage("assets/vario_current.png"),
-                        width: settingsValues["scalingFactor"]!,
-                        height: settingsValues["scalingFactor"]!,
+                        width: scalingFactor,
+                        height: scalingFactor,
                         color: currentVarioColor,
                       )),
                   Transform(
@@ -604,33 +605,31 @@ class _MyHomePageState extends State<MyHomePage> {
                       alignment: FractionalOffset.center,
                       child: Image(
                         image: const AssetImage("assets/vario_average1.png"),
-                        width: settingsValues["scalingFactor"]!,
-                        height: settingsValues["scalingFactor"]!,
+                        width: scalingFactor,
+                        height: scalingFactor,
                         color: currentVarioColor,
                       )),
                   Transform(
                       transform: Matrix4.rotationZ(wind1Rotation + pi / 2),
                       alignment: FractionalOffset.center,
                       child: SizedBox(
-                          width: settingsValues["scalingFactor"]!,
-                          height: settingsValues["scalingFactor"]!,
+                          width: scalingFactor,
+                          height: scalingFactor,
                           child: Icon(
                             Icons.keyboard_backspace_rounded,
                             color: Color.fromARGB(255, 172, 226, 255),
-                            size: settingsValues["scalingFactor"]! * 0.6,
+                            size: scalingFactor * 0.6,
                           ))),
                   Transform(
                       transform: Matrix4.rotationZ(wind2Rotation + pi / 2),
                       alignment: FractionalOffset.center,
                       child: SizedBox(
-                          width: settingsValues["scalingFactor"]!,
-                          height: settingsValues["scalingFactor"]!,
+                          width: scalingFactor,
+                          height: scalingFactor,
                           child: Icon(
                             Icons.keyboard_backspace_rounded,
                             color: Color.fromARGB(255, 255, 156, 156),
-                            size: settingsValues["scalingFactor"]! *
-                                0.6 *
-                                min(windRatio, 1.1),
+                            size: scalingFactor * 0.6 * min(windRatio, 1.1),
                           ))),
                   Container(
                     child: Text(
@@ -640,8 +639,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                   Container(
-                    width: settingsValues["scalingFactor"]!,
-                    height: settingsValues["scalingFactor"]!,
+                    width: scalingFactor,
+                    height: scalingFactor,
                     alignment: const Alignment(0.9, 0),
                     child: Text(
                       'AS ${((varioData.tasstate) * 3.6).toStringAsFixed(1)} km/h',
@@ -650,8 +649,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                   Container(
-                    width: settingsValues["scalingFactor"]!,
-                    height: settingsValues["scalingFactor"]!,
+                    width: scalingFactor,
+                    height: scalingFactor,
                     alignment: const Alignment(0.7, -0.3),
                     child: Text(
                       'W ${((varioData.windStore.windAverage.length) * 3.6).toStringAsFixed(1)} km/h',
@@ -661,8 +660,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
 
                   Container(
-                    width: settingsValues["scalingFactor"]!,
-                    height: settingsValues["scalingFactor"]!,
+                    width: scalingFactor,
+                    height: scalingFactor,
                     alignment: const Alignment(0.7, 0.3),
                     child: Text(
                       '${(currentVario).toStringAsFixed(1)} m/s',
@@ -848,8 +847,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     alignment: Alignment.center,
                     child: ClipOval(
                       child: Container(
-                        width: settingsValues["scalingFactor"]!,
-                        height: settingsValues["scalingFactor"]!,
+                        width: scalingFactor,
+                        height: scalingFactor,
                         child: Transform(
                           transform: Matrix4.diagonal3Values(8, 8, 8) +
                               Matrix4.translation(Vector3(

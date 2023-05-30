@@ -40,19 +40,13 @@ class _SettingsDialogState extends State<SettingsDialog> {
       title: Text('Settings, -42 to restore def'),
       content: SizedBox(
         width: double.maxFinite,
-        child: 
-      ListView(padding: const EdgeInsets.all(8), children: textFields),),
+        child: ListView(padding: const EdgeInsets.all(8), children: textFields),
+      ),
       actions: <Widget>[
-        TextButton(
-          child: Text('Cancel'),
-          onPressed: () {
-            Navigator.of(context).pop(null);
-          },
-        ),
         TextButton(
           child: Text('Ok'),
           onPressed: () {
-            Navigator.of(context).pop(widget.settingsValues);
+            Navigator.of(context).pop(null);
           },
         ),
       ],
