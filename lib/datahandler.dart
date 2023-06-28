@@ -167,7 +167,7 @@ class VarioData {
         //print("kalman var ${kalmanVarioTECalculator.getVario()} h ${height_gps} a ${airspeed}");
         rawClimbVario.setNewValue(kalmanVarioTECalculator.getVario());
       }
-      if (blePacketNum == 0) {
+      if (blePacketNum == 30) {
         /*if (blePacketNum == 2) {
       calculateYawUpdate();
     }*/

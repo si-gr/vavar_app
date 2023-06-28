@@ -77,8 +77,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   var _displayText = ["", "", "", ""];
   VarioData varioData = VarioData();
-  int buttonPressed = 1;
-  int windButtonPressed = 1;
+  int buttonPressed = 0;
+  int windButtonPressed = 0;
   Map<String, double> settingsValues = {};
   bool isPlaying = false;
   bool colorSwitchVario = false;
@@ -154,7 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "airspeedOffset": -4,
       "potECompensationFactor": 1,
       "kinECompensationFactor": 1,
-      "fastVarioFactor": 1,
+      "fastVarioFactor": -1,
       "kalmanAccFactor": 1,
       "scalingFactor": 300,
       "zeroFrequency": 250,
@@ -412,6 +412,9 @@ class _MyHomePageState extends State<MyHomePage> {
         windRatio = settingsValues["windChangeIndicatorMult"]! *
             varioData.windStore.currentWindChange.length /
             varioData.windStore.windAverage.length;
+        if (windRatio.isNaN || windRatio.isInfinite) {
+          windRatio = 1;
+        }
       } else if (windButtonPressed == 2) {
         wind2Rotation =
             varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
