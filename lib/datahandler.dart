@@ -271,7 +271,7 @@ class VarioData {
         gpsTime = byteData.getUint32(8, Endian.little);
         SPEdot =
             (byteData.getInt16(12, Endian.little).toDouble() / 50.0) / 9.81;
-        SKEdot =
+        SKEdot = 2 * 
             (byteData.getInt16(14, Endian.little).toDouble() / 50.0) / 9.81;
         gpsStatus = byteData.getInt16(16, Endian.little);
         writeData(

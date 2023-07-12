@@ -100,6 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double currentVario = 0;
   double oldVario = 0;
   double averageVario = 0;
+  Map<int, double> _varioValues = {};
   double wind1Rotation = 0;
   double wind2Rotation = 0;
   double windRatio = 1;
@@ -112,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late DiscoveredDevice _ubiqueDevice;
 
   late DataRestream dataRestream;
-  final flutterReactiveBle = FlutterReactiveBle();
+  var flutterReactiveBle = FlutterReactiveBle();
 
   late StreamSubscription<DiscoveredDevice> _scanStream;
   late QualifiedCharacteristic _rxCharacteristic;
@@ -159,7 +160,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "scalingFactor": 300,
       "zeroFrequency": 250,
       "frequencyChange": 50,
-      "varioOnOffChangeFactor": 15,
+      "varioOnOffChangeFactor": 10,
       "varioOnTimeZ": 600,
       "varioOffTimeZ": 600,
       "varioSoundGeneratorSampleRate": 20000,
@@ -179,6 +180,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "varioSpeedFactor": 1,
       "windRollingWindowSize": 40,
       "windChangeIndicatorMult": 2,
+      "varioSoundChangeIntervalMs": 100,
     };
   }
 
@@ -252,6 +254,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 // Main scanning logic happens here ⤵️
     if (permGranted) {
+      flutterReactiveBle = FlutterReactiveBle();
+      await Future.delayed(
+        const Duration(seconds: 2),
+      );  
+      
+
       _scanStream = flutterReactiveBle.scanForDevices(
           withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
         // Change this string to what you defined in Zephyr
@@ -273,12 +281,14 @@ class _MyHomePageState extends State<MyHomePage> {
     double cycleTimeOn = settingsValues["varioOnTimeZ"]!;
     double cycleTimeOff = settingsValues["varioOffTimeZ"]!;
     int lastTime = DateTime.now().millisecondsSinceEpoch;
+    int lastFreqUpdate = DateTime.now().millisecondsSinceEpoch;
     double audioVarioValue =
         min(currentVario.abs(), 5); // vario is max 5 m/s for audio
     while (true) {
       await Future.delayed(
         const Duration(milliseconds: 10),
       );
+      int nowTime = DateTime.now().millisecondsSinceEpoch;
       audioVarioValue = min(currentVario, 5);
       audioVarioValue =
           max(audioVarioValue, -5); // vario is min 0.1 m/s for audio
@@ -294,9 +304,8 @@ class _MyHomePageState extends State<MyHomePage> {
           1000);
       cycleTimeOff = cycleTimeOn;
       // start cycle
-      if (varioOn == false &&
-          DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOff) {
-        lastTime = DateTime.now().millisecondsSinceEpoch;
+      if (varioOn == false && nowTime - lastTime > cycleTimeOff) {
+        lastTime = nowTime;
         varioOn = true;
         SoundGenerator.setVolume(settingsValues["varioVolume"]!);
         if (colorSwitchVario) {
@@ -307,14 +316,17 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
       if (varioOn == true &&
-          DateTime.now().millisecondsSinceEpoch - lastTime > cycleTimeOn &&
+          nowTime - lastTime > cycleTimeOn &&
           audioVarioValue > 0) {
-        lastTime = DateTime.now().millisecondsSinceEpoch;
+        lastTime = nowTime;
         varioOn = false;
         SoundGenerator.setVolume(0);
       }
-      SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! +
-          audioVarioValue * settingsValues["frequencyChange"]!);
+      if (nowTime - lastFreqUpdate > settingsValues["varioSoundChangeIntervalMs"]!) {
+        lastFreqUpdate = nowTime;
+        SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! +
+            audioVarioValue * settingsValues["frequencyChange"]!);
+      }
     }
   }
 
@@ -337,20 +349,26 @@ class _MyHomePageState extends State<MyHomePage> {
       if (buttonPressed == 0) {
         // GPS Button
         _displayText = [
-          "lat ${varioData.latitude.toString()}",
-          "lon ${varioData.longitude.toString()}",
-          "alt ${varioData.height_gps.toStringAsFixed(1)}",
-          "raw climb"
+          "w corr ${(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)).toStringAsFixed(1)}",
+          "w len ${(varioData.windStore.currentWindChange.xy.length).toStringAsFixed(1)}",
+          "w comp ${(cos(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length).toStringAsFixed(1)}",
+          "wind comp skedot - wind"
         ];
-        currentVario = varioData.rawClimbVario.getFilteredVario();
-        averageVario = varioData.rawClimbVario.getAverageValue();
+        double sum = 0;
+        _varioValues.forEach((key, value) {
+          sum += value;
+        });
+        averageVario = sum / _varioValues.length;
+        currentVario =
+            settingsValues["potECompensationFactor"]! * varioData.SPEdot +
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - cos(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
           "vz ${(varioData.velned.z).toStringAsFixed(1)}",
           "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
           "alt ${varioData.height_gps.toStringAsFixed(1)}",
-          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} tecs / fastvario"
+          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} skedot + spedot no wind comp"
         ];
         averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
         currentVario =
@@ -361,12 +379,12 @@ class _MyHomePageState extends State<MyHomePage> {
           "vz ${(varioData.velned.z).toStringAsFixed(1)}",
           "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
           "alt ${varioData.height_gps.toStringAsFixed(1)}",
-          "fastvario / tecs"
+          "skedot + spedot"
         ];
-        currentVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
-        averageVario =
+        averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
+        currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot;
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 3) {
         // Cloud Button
         _displayText = [
@@ -388,7 +406,7 @@ class _MyHomePageState extends State<MyHomePage> {
         averageVario = varioData.rawClimbSpeedVario.getAverageValue();
       }
 
-      if (windButtonPressed == 0) {
+      if (windButtonPressed == 1) {
         wind2Rotation = -1 *
             (Vector2(varioData.xcsoarEkf.getWind()[0],
                         varioData.xcsoarEkf.getWind()[1])
@@ -400,7 +418,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         //print(
         //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
-      } else if (windButtonPressed == 1) {
+      } else if (windButtonPressed == 0) {
         wind1Rotation = -1 *
             (varioData.windStore.windAverage.xy
                     .angleToSigned(varioData.gpsSpeed.xy) +
@@ -421,6 +439,11 @@ class _MyHomePageState extends State<MyHomePage> {
         wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
       }
     });
+    
+    _varioValues.removeWhere((key, value) =>
+        key < DateTime.now().microsecondsSinceEpoch - (settingsValues["varioAverageTimeS"]! * 1000000));
+    _varioValues.addAll(
+        {DateTime.now().microsecondsSinceEpoch: currentVario});
   }
 
   Future<void> _regularUpdates() async {
@@ -453,7 +476,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   onPressed: () {
                     Navigator.pop(context, i);
                   },
-                  child: Text(filesList[i].path),
+                  child: Text(
+                    filesList[i].path,
+                    style: const TextStyle(fontSize: 20, color: Colors.black),
+                  ),
                 ),
             ],
           );

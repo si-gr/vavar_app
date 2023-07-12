@@ -32,7 +32,7 @@ class DataRestream {
 
     timeOffset = realStartTime - logStartTime;
     int lineCounter = 1;
-    while (lineCounter < lines.length) {
+    while (lineCounter < lines.length) {     
       while (getLineTime(lines[lineCounter]) >
           DateTime.now().microsecondsSinceEpoch - timeOffset) {
         await Future.delayed(Duration(milliseconds: 1));
@@ -62,10 +62,22 @@ class DataRestream {
   }
 
   void updateVarioData(String line) {
-    var splittedLine = line.split("~")[0].split(',');
+    var splittedLine = line.split("~")[1].split(',');
     if (splittedLine.length < 3) {
       return;
     }
+    List<int> data = [];
+    for (String datItem in splittedLine) {
+      try {
+        if (datItem.length > 0){
+          data.add(int.parse(datItem));
+        }
+      } on FormatException catch (e){
+        print("Error parsing line $e");
+      }
+    }
+    varioData.parse_ble_data(data);
+    /*
     try {
       switch (splittedLine[1]) {
         case '0':
@@ -168,9 +180,11 @@ class DataRestream {
     } on FormatException catch (e) {
       print(e);
     }
+    
     varioData.updateTime =
         DateTime.now().microsecondsSinceEpoch - varioData.lastUpdate;
     varioData.lastUpdate = DateTime.now().microsecondsSinceEpoch;
     varioData.processUpdate(int.parse(splittedLine[1]));
+    */
   }
 }
