@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:ffi';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:ble_larus_android/apWindStore.dart';
 import 'package:ble_larus_android/xcsoar_windekf.dart';
@@ -22,7 +23,14 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+Future<void> main() async {
+  final logFile = File(path.join("/storage/emulated/0/Android/data/com.example.ble_larus_android/files/",
+            'errorlog.csv')).openWrite(mode: FileMode.append);
+    //logFile.write("test");
+  PlatformDispatcher.instance.onError = (error, stack) {
+    logFile.write("${error.toString()}\n${stack.toString()}");
+    return true;
+  };
   runApp(const MyApp());
 }
 
@@ -113,7 +121,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late DiscoveredDevice _ubiqueDevice;
 
   late DataRestream dataRestream;
-  var flutterReactiveBle = FlutterReactiveBle();
+  final flutterReactiveBle = FlutterReactiveBle();
 
   late StreamSubscription<DiscoveredDevice> _scanStream;
   late QualifiedCharacteristic _rxCharacteristic;
@@ -155,6 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "airspeedOffset": -4,
       "potECompensationFactor": 1,
       "kinECompensationFactor": 1,
+      "windCompensationFactor": 1,
       "fastVarioFactor": -1,
       "kalmanAccFactor": 1,
       "scalingFactor": 300,
@@ -254,7 +263,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 // Main scanning logic happens here ⤵️
     if (permGranted) {
-      flutterReactiveBle = FlutterReactiveBle();
+      //flutterReactiveBle = FlutterReactiveBle();
       await Future.delayed(
         const Duration(seconds: 2),
       );  
@@ -352,7 +361,7 @@ class _MyHomePageState extends State<MyHomePage> {
           "w corr ${(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)).toStringAsFixed(1)}",
           "w len ${(varioData.windStore.currentWindChange.xy.length).toStringAsFixed(1)}",
           "w comp ${(cos(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length).toStringAsFixed(1)}",
-          "wind comp skedot - wind"
+          "skedot + spedot w/ average"
         ];
         double sum = 0;
         _varioValues.forEach((key, value) {
@@ -361,19 +370,19 @@ class _MyHomePageState extends State<MyHomePage> {
         averageVario = sum / _varioValues.length;
         currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - cos(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length;
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - settingsValues["windCompensationFactor"]! * 2 * (-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
           "vz ${(varioData.velned.z).toStringAsFixed(1)}",
           "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
           "alt ${varioData.height_gps.toStringAsFixed(1)}",
-          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} skedot + spedot no wind comp"
+          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} skedot - wind"
         ];
         averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
         currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot;
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - settingsValues["windCompensationFactor"]! * 2 * (-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 2) {
         _displayText = [
           "vz ${(varioData.velned.z).toStringAsFixed(1)}",

@@ -35,7 +35,7 @@ class DataRestream {
     while (lineCounter < lines.length) {     
       while (getLineTime(lines[lineCounter]) >
           DateTime.now().microsecondsSinceEpoch - timeOffset) {
-        await Future.delayed(Duration(milliseconds: 1));
+        await Future.delayed(Duration(microseconds: 1));
       }
       updateVarioData(lines[lineCounter]);
       lineCounter++;

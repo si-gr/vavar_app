@@ -54,7 +54,7 @@ class VarioData {
   double tasstate = 0;
   double SPEdot = 0;
   double SKEdot = 0;
-  APWindStore windStore = APWindStore(rollingWindowSize: 10);
+  APWindStore windStore = APWindStore(rollingWindowSize: 40);
 
   double kalmanAccFactor = 1;
   double varioSpeedFactor = 1;
