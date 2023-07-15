@@ -54,7 +54,8 @@ class VarioData {
   double tasstate = 0;
   double SPEdot = 0;
   double SKEdot = 0;
-  APWindStore windStore = APWindStore(rollingWindowSize: 40);
+  APWindStore windStore = APWindStore(rollingWindowSize: 500);
+  APWindStore fastWindStore = APWindStore(rollingWindowSize: 5);
 
   double kalmanAccFactor = 1;
   double varioSpeedFactor = 1;
@@ -186,9 +187,10 @@ class VarioData {
             teSpeedCalculator.getVario(),
             kalmanAccFactor *
                 (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
-      } else if (blePacketNum == 1) {
+      } else if (blePacketNum == 1 || blePacketNum == 10) {
         // new wind
         windStore.update(ardupilotWind);
+        fastWindStore.update(ardupilotWind);
       }
     }
   }
@@ -294,10 +296,11 @@ class VarioData {
             0);
         windCorrection = byteData.getInt16(4, Endian.little).toDouble() / 500.0;
         airspeed = byteData.getInt16(6, Endian.little).toDouble() / 500.0;
-        SPEdot = byteData.getInt16(8, Endian.little).toDouble() / 50.0;
-        SKEdot = byteData.getInt16(10, Endian.little).toDouble() / 50.0;
+        SPEdot = (byteData.getInt16(8, Endian.little).toDouble() / 50.0) / 9.81;
+        SKEdot = 2 * (byteData.getInt16(10, Endian.little).toDouble() / 50.0) / 9.81;
         roll = byteData.getInt16(12, Endian.little) / 0x8000 * pi;
         pitch = byteData.getInt16(14, Endian.little) / 0x8000 * pi;
+        //print("${SPEdot.toString()},${SKEdot.toString()}");
         writeData(
             '10,${ardupilotWind.toString()},${windCorrection.toString()},${airspeed.toString()},${SPEdot.toString()},${SKEdot.toString()},${roll.toString()},${pitch.toString()}~${logRawData ? logString : ""}');
 

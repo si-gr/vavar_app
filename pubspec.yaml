@@ -40,6 +40,7 @@ dependencies:
   permission_handler: ^10.2.0
   vector_math: ^2.1.4
   path_provider: ^2.0.13
+  logger: ^1.4.0
   sound_generator:
     path: ../sound_generator
 

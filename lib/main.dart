@@ -22,10 +22,24 @@ import 'dart:isolate';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:logger/logger.dart' as system_logger;
+import 'dart:developer' as dev;
 
 Future<void> main() async {
+  var logger = system_logger.Logger();
+
+  dev.log("logger working devlog");
+  print("logger working print");
+  logger.d("Logger is working!");
   PlatformDispatcher.instance.onError = (error, stack) {
-    print("${error.toString()}\n${stack.toString()}");
+    logger.e("${error.toString()}\n${stack.toString()}");
+    print(stack);
+    dev.log(stack.toString());
+    final logFile = File(path.join(
+            "/storage/emulated/0/Android/data/com.example.ble_larus_android/files/",
+            'errorlog.csv'))
+        .openWrite(mode: FileMode.append);
+    logFile.write("${error.toString()}\n${stack.toString()}");
     return true;
   };
   runApp(const MyApp());
@@ -157,6 +171,8 @@ class _MyHomePageState extends State<MyHomePage> {
   /// Reset settings to default values
   void resetSettings() {
     settingsValues = {
+      "soundactive": 1,
+      "soundUpdateMs": 100,
       "airspeedOffset": -4,
       "potECompensationFactor": 1,
       "kinECompensationFactor": 1,
@@ -202,6 +218,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// Save settings map to shared preferences store
   void saveSettings() async {
+    var logger = system_logger.Logger();
+
+    logger.d("saving settings");
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     for (String key in settingsValues.keys) {
       if (settingsValues[key] == -42) {
@@ -219,22 +238,24 @@ class _MyHomePageState extends State<MyHomePage> {
     resetSettings();
     restoreSettings();
     activateSettings();
-    SoundGenerator.init(
-        settingsValues["varioSoundGeneratorSampleRate"]!.toInt());
+    if (settingsValues["soundactive"]!.toInt() == 1) {
+      SoundGenerator.init(
+          settingsValues["varioSoundGeneratorSampleRate"]!.toInt());
 
-    SoundGenerator.onIsPlayingChanged.listen((value) {
-      setState(() {
-        isPlaying = value;
+      SoundGenerator.onIsPlayingChanged.listen((value) {
+        setState(() {
+          isPlaying = value;
+        });
       });
-    });
 
-    SoundGenerator.setAutoUpdateOneCycleSample(true);
-    //Force update for one time
-    SoundGenerator.refreshOneCycleData();
+      SoundGenerator.setAutoUpdateOneCycleSample(true);
+      //Force update for one time
+      SoundGenerator.refreshOneCycleData();
 
-    SoundGenerator.setWaveType(waveTypes.SINUSOIDAL);
+      SoundGenerator.setWaveType(waveTypes.SINUSOIDAL);
 
-    regulateVariometer();
+      regulateVariometer();
+    }
   }
 
   void _startScan() async {
@@ -291,7 +312,7 @@ class _MyHomePageState extends State<MyHomePage> {
         min(currentVario.abs(), 5); // vario is max 5 m/s for audio
     while (true) {
       await Future.delayed(
-        const Duration(milliseconds: 10),
+        Duration(milliseconds: settingsValues["soundUpdateMs"]!.toInt()),
       );
       int nowTime = DateTime.now().millisecondsSinceEpoch;
       audioVarioValue = min(currentVario, 5);
@@ -351,13 +372,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
     setState(() {
       currentWarningString += varioData.updateTime.toString();
-
+      Vector2 windchange = (varioData.windStore.windAverage.xy - varioData.fastWindStore.windAverage.xy);
       if (buttonPressed == 0) {
         // GPS Button
         _displayText = [
-          "w corr ${(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)).toStringAsFixed(1)}",
-          "w len ${(varioData.windStore.currentWindChange.xy.length).toStringAsFixed(1)}",
-          "w comp ${(cos(-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length).toStringAsFixed(1)}",
+          "w corr ${(-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)).toStringAsFixed(1)}",
+          "w len ${(windchange.length).toStringAsFixed(1)}",
+          "w comp ${(cos(-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)) * windchange.length).toStringAsFixed(1)}",
           "skedot + spedot w/ average"
         ];
         double sum = 0;
@@ -371,10 +392,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 settingsValues["windCompensationFactor"]! *
                     2 *
                     (-1 *
-                        (varioData.windStore.currentWindChange.xy
+                        (windchange
                                 .angleToSigned(varioData.gpsSpeed.xy) +
                             pi)) *
-                    varioData.windStore.currentWindChange.xy.length;
+                    windchange.length;
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
@@ -445,11 +466,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     .angleToSigned(varioData.gpsSpeed.xy) +
                 pi);
         wind2Rotation = -1 *
-            (varioData.windStore.currentWindChange.xy
+            ((varioData.windStore.windAverage.xy - varioData.fastWindStore.windAverage.xy)
                     .angleToSigned(varioData.gpsSpeed.xy) +
                 pi);
         windRatio = settingsValues["windChangeIndicatorMult"]! *
-            varioData.windStore.currentWindChange.length /
+            varioData.fastWindStore.windAverage.length /
             varioData.windStore.windAverage.length;
         if (windRatio.isNaN || windRatio.isInfinite) {
           windRatio = 1;
@@ -803,9 +824,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       )),
                   IconButton(
                       onPressed: () {
-                        setState(() {
-                          SoundGenerator.play();
-                        });
+                        if (settingsValues["soundactive"]!.toInt() == 1) {
+                          setState(() {
+                            SoundGenerator.play();
+                          });
+                        }
                       },
                       icon: const Icon(
                         Icons.volume_up,
@@ -814,9 +837,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       )),
                   IconButton(
                       onPressed: () {
-                        setState(() {
-                          SoundGenerator.stop();
-                        });
+                        if (settingsValues["soundactive"]!.toInt() == 1) {
+                          setState(() {
+                            SoundGenerator.stop();
+                          });
+                        }
                       },
                       icon: const Icon(
                         Icons.volume_off,
@@ -874,11 +899,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                   builder: (context) => SettingsDialog(
                                       settingsValues: settingsValues))
                               .then((value) {
-                            if (value != null) {
-                              settingsValues = value;
-                              saveSettings();
-                              activateSettings();
-                            }
+                            //if (value != null) {
+                            //settingsValues = value;
+                            saveSettings();
+                            activateSettings();
+                            //}
                           }),
                       icon: const Icon(
                         Icons.settings,
