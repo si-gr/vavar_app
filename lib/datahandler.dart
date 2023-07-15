@@ -203,7 +203,7 @@ class VarioData {
     for (int datItem in data) {
       logString += "$datItem,";
     }
-    fastVario = byteData.getInt8(18).toDouble() / 25.0;
+    //fastVario = byteData.getInt8(18).toDouble() / 25.0; fast is nur 17 lang
     switch (blePacketNum) {
       case 0:
         airspeed = byteData.getFloat32(0, Endian.little) + airspeedOffset;
@@ -271,8 +271,8 @@ class VarioData {
         gpsTime = byteData.getUint32(8, Endian.little);
         SPEdot =
             (byteData.getInt16(12, Endian.little).toDouble() / 50.0) / 9.81;
-        SKEdot = 2 * 
-            (byteData.getInt16(14, Endian.little).toDouble() / 50.0) / 9.81;
+        SKEdot =
+            2 * (byteData.getInt16(14, Endian.little).toDouble() / 50.0) / 9.81;
         gpsStatus = byteData.getInt16(16, Endian.little);
         writeData(
             '5,${acceleration.toString()},${batteryVoltage.toString()},${gpsTime.toString()},${SPEdot.toString()},${SKEdot.toString()},${gpsStatus.toString()},${fastVario.toString()}~${logRawData ? logString : ""}');

@@ -24,11 +24,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
-  final logFile = File(path.join("/storage/emulated/0/Android/data/com.example.ble_larus_android/files/",
-            'errorlog.csv')).openWrite(mode: FileMode.append);
-    //logFile.write("test");
   PlatformDispatcher.instance.onError = (error, stack) {
-    logFile.write("${error.toString()}\n${stack.toString()}");
+    print("${error.toString()}\n${stack.toString()}");
     return true;
   };
   runApp(const MyApp());
@@ -266,8 +263,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //flutterReactiveBle = FlutterReactiveBle();
       await Future.delayed(
         const Duration(seconds: 2),
-      );  
-      
+      );
 
       _scanStream = flutterReactiveBle.scanForDevices(
           withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
@@ -331,7 +327,8 @@ class _MyHomePageState extends State<MyHomePage> {
         varioOn = false;
         SoundGenerator.setVolume(0);
       }
-      if (nowTime - lastFreqUpdate > settingsValues["varioSoundChangeIntervalMs"]!) {
+      if (nowTime - lastFreqUpdate >
+          settingsValues["varioSoundChangeIntervalMs"]!) {
         lastFreqUpdate = nowTime;
         SoundGenerator.setFrequency(settingsValues["zeroFrequency"]! +
             audioVarioValue * settingsValues["frequencyChange"]!);
@@ -370,7 +367,14 @@ class _MyHomePageState extends State<MyHomePage> {
         averageVario = sum / _varioValues.length;
         currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - settingsValues["windCompensationFactor"]! * 2 * (-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length;
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
+                settingsValues["windCompensationFactor"]! *
+                    2 *
+                    (-1 *
+                        (varioData.windStore.currentWindChange.xy
+                                .angleToSigned(varioData.gpsSpeed.xy) +
+                            pi)) *
+                    varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 1) {
         // Airspeed Button
         _displayText = [
@@ -382,7 +386,14 @@ class _MyHomePageState extends State<MyHomePage> {
         averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
         currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - settingsValues["windCompensationFactor"]! * 2 * (-1 * (varioData.windStore.currentWindChange.xy.angleToSigned(varioData.gpsSpeed.xy) + pi)) * varioData.windStore.currentWindChange.xy.length;
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
+                settingsValues["windCompensationFactor"]! *
+                    2 *
+                    (-1 *
+                        (varioData.windStore.currentWindChange.xy
+                                .angleToSigned(varioData.gpsSpeed.xy) +
+                            pi)) *
+                    varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 2) {
         _displayText = [
           "vz ${(varioData.velned.z).toStringAsFixed(1)}",
@@ -393,7 +404,8 @@ class _MyHomePageState extends State<MyHomePage> {
         averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
         currentVario =
             settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot - varioData.windStore.currentWindChange.xy.length;
+                settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
+                varioData.windStore.currentWindChange.xy.length;
       } else if (buttonPressed == 3) {
         // Cloud Button
         _displayText = [
@@ -448,11 +460,12 @@ class _MyHomePageState extends State<MyHomePage> {
         wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
       }
     });
-    
+
     _varioValues.removeWhere((key, value) =>
-        key < DateTime.now().microsecondsSinceEpoch - (settingsValues["varioAverageTimeS"]! * 1000000));
-    _varioValues.addAll(
-        {DateTime.now().microsecondsSinceEpoch: currentVario});
+        key <
+        DateTime.now().microsecondsSinceEpoch -
+            (settingsValues["varioAverageTimeS"]! * 1000000));
+    _varioValues.addAll({DateTime.now().microsecondsSinceEpoch: currentVario});
   }
 
   Future<void> _regularUpdates() async {
