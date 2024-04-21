@@ -98,6 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
   VarioData varioData = VarioData();
   int buttonPressed = 0;
   int windButtonPressed = 0;
+  int lastScreenUpdate = 0;
   Map<String, double> settingsValues = {};
   bool isPlaying = false;
   bool colorSwitchVario = false;
@@ -370,123 +371,126 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
-    setState(() {
-      currentWarningString += varioData.updateTime.toString();
-      Vector2 windchange = (varioData.windStore.windAverage.xy - varioData.fastWindStore.windAverage.xy);
-      if (buttonPressed == 0) {
-        // GPS Button
-        _displayText = [
-          "w corr ${(-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)).toStringAsFixed(1)}",
-          "w len ${(windchange.length).toStringAsFixed(1)}",
-          "w comp ${(cos(-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)) * windchange.length).toStringAsFixed(1)}",
-          "skedot + spedot w/ average"
-        ];
-        double sum = 0;
-        _varioValues.forEach((key, value) {
-          sum += value;
-        });
-        averageVario = sum / _varioValues.length;
-        currentVario =
-            settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
-                settingsValues["windCompensationFactor"]! *
-                    2 *
-                    (-1 *
-                        (windchange
-                                .angleToSigned(varioData.gpsSpeed.xy) +
-                            pi)) *
-                    windchange.length;
-      } else if (buttonPressed == 1) {
-        // Airspeed Button
-        _displayText = [
-          "vz ${(varioData.velned.z).toStringAsFixed(1)}",
-          "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
-          "alt ${varioData.height_gps.toStringAsFixed(1)}",
-          "az ${varioData.airspeedVector.z.toStringAsFixed(1)} skedot - wind"
-        ];
-        averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
-        currentVario =
-            settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
-                settingsValues["windCompensationFactor"]! *
-                    2 *
-                    (-1 *
-                        (varioData.windStore.currentWindChange.xy
-                                .angleToSigned(varioData.gpsSpeed.xy) +
-                            pi)) *
-                    varioData.windStore.currentWindChange.xy.length;
-      } else if (buttonPressed == 2) {
-        _displayText = [
-          "vz ${(varioData.velned.z).toStringAsFixed(1)}",
-          "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
-          "alt ${varioData.height_gps.toStringAsFixed(1)}",
-          "skedot + spedot"
-        ];
-        averageVario = settingsValues["fastVarioFactor"]! * varioData.fastVario;
-        currentVario =
-            settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
-                varioData.windStore.currentWindChange.xy.length;
-      } else if (buttonPressed == 3) {
-        // Cloud Button
-        _displayText = [
-          "turn radius ${varioData.turnRadius.toStringAsFixed(1)} vx ${(varioData.velned.x).toStringAsFixed(1)}",
-          "climb ${varioData.raw_climb_rate.toStringAsFixed(1)} vy ${(varioData.velned.y).toStringAsFixed(1)}",
-          "rd ${varioData.reading.toString()} vz ${(varioData.velned.z).toStringAsFixed(1)}",
-          "fastVario and rawavg"
-        ];
-        currentVario = varioData.fastVario;
-        averageVario = varioData.rawClimbSpeedVario.getAverageValue();
-      } else if (buttonPressed == 4) {
-        _displayText = [
-          "gx ${(varioData.gpsSpeed.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
-          "gy ${(varioData.gpsSpeed.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
-          "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
-          "raw climb speed"
-        ];
-        currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
-        averageVario = varioData.rawClimbSpeedVario.getAverageValue();
-      }
+    int nowTime = DateTime.now().millisecondsSinceEpoch;
+    if (nowTime - lastScreenUpdate > 10) {
+      lastScreenUpdate = nowTime;
 
-      if (windButtonPressed == 1) {
-        wind2Rotation = -1 *
-            (Vector2(varioData.xcsoarEkf.getWind()[0],
-                        varioData.xcsoarEkf.getWind()[1])
-                    .angleToSigned(varioData.gpsSpeed.xy) +
-                pi);
-        wind1Rotation = -1 *
-            (varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy) +
-                pi);
-
-        //print(
-        //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
-      } else if (windButtonPressed == 0) {
-        wind1Rotation = -1 *
-            (varioData.windStore.windAverage.xy
-                    .angleToSigned(varioData.gpsSpeed.xy) +
-                pi);
-        wind2Rotation = -1 *
-            ((varioData.windStore.windAverage.xy - varioData.fastWindStore.windAverage.xy)
-                    .angleToSigned(varioData.gpsSpeed.xy) +
-                pi);
-        windRatio = settingsValues["windChangeIndicatorMult"]! *
-            varioData.fastWindStore.windAverage.length /
-            varioData.windStore.windAverage.length;
-        if (windRatio.isNaN || windRatio.isInfinite) {
-          windRatio = 1;
+      setState(() {
+        currentWarningString += varioData.updateTime.toString();
+        Vector2 windchange = (varioData.windStore.windAverage.xy -
+            varioData.fastWindStore.windAverage.xy);
+        if (buttonPressed == 0) {
+          // GPS Button
+          _displayText = [
+            "w corr ${(-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)).toStringAsFixed(1)}",
+            "w len ${(windchange.length).toStringAsFixed(1)}",
+            "w comp ${(cos(-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)) * windchange.length).toStringAsFixed(1)}",
+            "skedot + spedot w/ average"
+          ];
+          double sum = 0;
+          _varioValues.forEach((key, value) {
+            sum += value;
+          });
+          averageVario = sum / _varioValues.length;
+          currentVario = settingsValues["potECompensationFactor"]! *
+                  varioData.SPEdot +
+              settingsValues["kinECompensationFactor"]! * varioData.SKEdot;// - settingsValues["windCompensationFactor"]! * 2 * (-1 * (windchange.angleToSigned(varioData.gpsSpeed.xy) + pi)) * windchange.length;
+        } else if (buttonPressed == 1) {
+          // Airspeed Button
+          _displayText = [
+            "vz ${(varioData.velned.z).toStringAsFixed(1)}",
+            "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
+            "alt ${varioData.height_gps.toStringAsFixed(1)}",
+            "az ${varioData.airspeedVector.z.toStringAsFixed(1)} skedot - wind"
+          ];
+          averageVario =
+              settingsValues["fastVarioFactor"]! * varioData.fastVario;
+          currentVario =
+              settingsValues["potECompensationFactor"]! * varioData.SPEdot +
+                  settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
+                  settingsValues["windCompensationFactor"]! *
+                      2 *
+                      (-1 *
+                          (varioData.windStore.currentWindChange.xy
+                                  .angleToSigned(varioData.gpsSpeed.xy) +
+                              pi)) *
+                      varioData.windStore.currentWindChange.xy.length;
+        } else if (buttonPressed == 2) {
+          _displayText = [
+            "vz ${(varioData.velned.z).toStringAsFixed(1)}",
+            "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
+            "alt ${varioData.height_gps.toStringAsFixed(1)}",
+            "skedot + spedot"
+          ];
+          averageVario =
+              settingsValues["fastVarioFactor"]! * varioData.fastVario;
+          currentVario =
+              settingsValues["potECompensationFactor"]! * varioData.SPEdot +
+                  settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
+                  varioData.windStore.currentWindChange.xy.length;
+        } else if (buttonPressed == 3) {
+          // Cloud Button
+          _displayText = [
+            "turn radius ${varioData.turnRadius.toStringAsFixed(1)} vx ${(varioData.velned.x).toStringAsFixed(1)}",
+            "climb ${varioData.raw_climb_rate.toStringAsFixed(1)} vy ${(varioData.velned.y).toStringAsFixed(1)}",
+            "rd ${varioData.reading.toString()} vz ${(varioData.velned.z).toStringAsFixed(1)}",
+            "fastVario and rawavg"
+          ];
+          currentVario = varioData.fastVario;
+          averageVario = varioData.rawClimbSpeedVario.getAverageValue();
+        } else if (buttonPressed == 4) {
+          _displayText = [
+            "gx ${(varioData.gpsSpeed.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
+            "gy ${(varioData.gpsSpeed.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
+            "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
+            "raw climb speed"
+          ];
+          currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
+          averageVario = varioData.rawClimbSpeedVario.getAverageValue();
         }
-      } else if (windButtonPressed == 2) {
-        wind2Rotation =
-            varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
-        wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
-      }
-    });
 
-    _varioValues.removeWhere((key, value) =>
-        key <
-        DateTime.now().microsecondsSinceEpoch -
-            (settingsValues["varioAverageTimeS"]! * 1000000));
-    _varioValues.addAll({DateTime.now().microsecondsSinceEpoch: currentVario});
+        if (windButtonPressed == 1) {
+          wind2Rotation = -1 *
+              (Vector2(varioData.xcsoarEkf.getWind()[0],
+                          varioData.xcsoarEkf.getWind()[1])
+                      .angleToSigned(varioData.gpsSpeed.xy) +
+                  pi);
+          wind1Rotation = -1 *
+              (varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy) +
+                  pi);
+
+          //print(
+          //    "xcsoar wind: ${Vector2(varioData.xcsoarEkf.getWind()[0], varioData.xcsoarEkf.getWind()[1]).angleTo(Vector2(1, 0))}");
+        } else if (windButtonPressed == 0) {
+          wind1Rotation = -1 *
+              (varioData.windStore.windAverage.xy
+                      .angleToSigned(varioData.gpsSpeed.xy) +
+                  pi);
+          wind2Rotation = -1 *
+              ((varioData.windStore.windAverage.xy -
+                          varioData.fastWindStore.windAverage.xy)
+                      .angleToSigned(varioData.gpsSpeed.xy) +
+                  pi);
+          windRatio = settingsValues["windChangeIndicatorMult"]! *
+              varioData.fastWindStore.windAverage.length /
+              varioData.windStore.windAverage.length;
+          if (windRatio.isNaN || windRatio.isInfinite) {
+            windRatio = 1;
+          }
+        } else if (windButtonPressed == 2) {
+          wind2Rotation =
+              varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
+          wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
+        }
+      });
+
+      _varioValues.removeWhere((key, value) =>
+          key <
+          DateTime.now().microsecondsSinceEpoch -
+              (settingsValues["varioAverageTimeS"]! * 1000000));
+      _varioValues
+          .addAll({DateTime.now().microsecondsSinceEpoch: currentVario});
+    }
   }
 
   Future<void> _regularUpdates() async {
