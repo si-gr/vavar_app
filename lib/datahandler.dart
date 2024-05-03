@@ -50,6 +50,8 @@ class VarioData {
   double thermability = 0;
   double reading = 0;
   double airspeedOffset = -4;
+  double airspeedLinearFactor = 1.0;
+  double airspeedQuadraticFactor = 0.0;
   double height_baro = 0;
   double tasstate = 0;
   double SPEdot = 0;
@@ -158,6 +160,7 @@ class VarioData {
     xcsoarEkfVelned.update(airspeed, velned);
   }
 
+  // will be executed after each received packet
   void processUpdate(int blePacketNum) {
     if ((allDataReceived ~/ pow(2, blePacketNum).toInt()) % 2 == 0) {
       allDataReceived += pow(2, blePacketNum).toInt();
@@ -193,6 +196,9 @@ class VarioData {
       // new wind
       windStore.update(ardupilotWind);
       fastWindStore.update(ardupilotWind);
+    }
+    if (blePacketNum == 20){
+      teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, velned.z);
     }
   }
 
@@ -286,7 +292,7 @@ class VarioData {
             byteData.getInt16(2, Endian.little).toDouble() / 500.0,
             0);
         airspeed = byteData.getInt16(4, Endian.little).toDouble() / 500.0;
-        tasstate = airspeed;
+        airspeed = airspeed * airspeed * airspeedQuadraticFactor + airspeed * airspeedLinearFactor + airspeedOffset;
         SPEdot = (byteData.getInt16(6, Endian.little).toDouble() / 50.0) / 9.81;
         SKEdot =
             2 * (byteData.getInt16(8, Endian.little).toDouble() / 50.0) / 9.81;
@@ -297,20 +303,30 @@ class VarioData {
             '10,${ardupilotWind.toString()},${windCorrection.toString()},${airspeed.toString()},${SPEdot.toString()},${SKEdot.toString()},${roll.toString()},${pitch.toString()}~${logRawData ? logString : ""}');
         break;
 
+/*struct PACKED fast_aux_larus_variables {
+        int16_t velned_velocity_x;//500
+        int16_t velned_velocity_y;//500
+        int16_t velned_velocity_z;//500
+        int16_t acc_x;//50
+        int16_t acc_y;//50
+        int16_t acc_z;//50
+        int16_t tas;//500
+        int16_t varioreading;//500
+        int8_t vvv;
+    } _fast_aux_variables;*/
       case 11:  // fast variant 2
-        ardupilotWind = Vector3(
-            byteData.getInt16(0, Endian.little).toDouble() / 500.0,
-            byteData.getInt16(2, Endian.little).toDouble() / 500.0,
-            0);
-        airspeed = byteData.getInt16(4, Endian.little).toDouble() / 500.0;
-        tasstate = airspeed;
-        height_baro = byteData.getInt16(6, Endian.little).toDouble() / 500.0;
-        gpsSpeed = Vector3(
-            byteData.getInt16(8, Endian.little) / 500.0,
-            byteData.getInt16(10, Endian.little) / 500.0,
-            byteData.getInt16(12, Endian.little) / 500.0);
+      velned = Vector3(
+            byteData.getInt16(0, Endian.little) / 500.0,
+            byteData.getInt16(2, Endian.little) / 500.0,
+            byteData.getInt16(4, Endian.little) / 500.0);
+        acceleration = Vector3(
+            byteData.getInt16(6, Endian.little) / 50.0,
+            byteData.getInt16(8, Endian.little) / 50.0,
+            byteData.getInt16(10, Endian.little) / 50.0);
+        tasstate = byteData.getInt16(12, Endian.little).toDouble() / 500.0;
+        reading = byteData.getInt16(14, Endian.little).toDouble() / 500.0;
         writeData(
-            '10,${ardupilotWind.toString()},${windCorrection.toString()},${airspeed.toString()},${SPEdot.toString()},${SKEdot.toString()},${roll.toString()},${pitch.toString()}~${logRawData ? logString : ""}');
+            '11,${velned.toString()},${acceleration.toString()},${tasstate.toString()},${reading.toString()}~${logRawData ? logString : ""}');
         break;
 
       case 20:  // slow

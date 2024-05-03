@@ -114,7 +114,8 @@ class _MyHomePageState extends State<MyHomePage> {
   double rollAngle = 0;
   double targetMinRoll = 40;
   Color currentVarioColor = Colors.green;
-  double scalingFactor = 300;
+  double scalingFactor = 400;
+  double scalingFactorHorizon = 300;
 
   double horizonPitch = 0;
   double currentVario = 0;
@@ -162,6 +163,8 @@ class _MyHomePageState extends State<MyHomePage> {
     varioData.gpsVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
     varioData.gpsVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
     varioData.airspeedOffset = settingsValues["airspeedOffset"]!;
+    varioData.airspeedLinearFactor = settingsValues["airspeedLinearFactor"]!;
+    varioData.airspeedQuadraticFactor = settingsValues["airspeedQuadraticFactor"]!;
     varioData.kalmanAccFactor = settingsValues["kalmanAccFactor"]!;
     varioData.varioSpeedFactor = settingsValues["varioSpeedFactor"]!;
     varioData.windStore = APWindStore(
@@ -175,6 +178,8 @@ class _MyHomePageState extends State<MyHomePage> {
       "soundactive": 1,
       "soundUpdateMs": 100,
       "airspeedOffset": -4,
+      "airspeedLinearFactor": 1,
+      "airspeedQuadraticFactor": 0,
       "potECompensationFactor": 1,
       "kinECompensationFactor": 1,
       "windCompensationFactor": 1,
@@ -401,20 +406,14 @@ class _MyHomePageState extends State<MyHomePage> {
             "vz ${(varioData.velned.z).toStringAsFixed(1)}",
             "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
             "alt ${varioData.height_gps.toStringAsFixed(1)}",
-            "az ${varioData.airspeedVector.z.toStringAsFixed(1)} skedot - wind"
+            "airspeed velned"
           ];
-          averageVario =
-              settingsValues["fastVarioFactor"]! * varioData.fastVario;
-          currentVario =
-              settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                  settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
-                  settingsValues["windCompensationFactor"]! *
-                      2 *
-                      (-1 *
-                          (varioData.windStore.currentWindChange.xy
-                                  .angleToSigned(varioData.gpsSpeed.xy) +
-                              pi)) *
-                      varioData.windStore.currentWindChange.xy.length;
+          double sum = 0;
+          _varioValues.forEach((key, value) {
+            sum += value;
+          });
+          averageVario = sum / _varioValues.length;
+          currentVario = varioData.teSpeedCalculator.getVario();
         } else if (buttonPressed == 2) {
           _displayText = [
             "vz ${(varioData.velned.z).toStringAsFixed(1)}",
@@ -770,7 +769,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 0;
-                          currentVarioColor = Colors.green;
+                          currentVarioColor = Color.fromARGB(255, 110, 255, 114);
                         });
                       },
                       icon: const Icon(
@@ -782,7 +781,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: () {
                         setState(() {
                           buttonPressed = 1;
-                          currentVarioColor = Colors.red;
+                          currentVarioColor = Color.fromARGB(255, 255, 146, 139);
                         });
                       },
                       icon: const Icon(
@@ -927,8 +926,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     alignment: Alignment.center,
                     child: ClipOval(
                       child: Container(
-                        width: scalingFactor,
-                        height: scalingFactor,
+                        width: scalingFactorHorizon,
+                        height: scalingFactorHorizon,
                         child: Transform(
                           transform: Matrix4.diagonal3Values(8, 8, 8) +
                               Matrix4.translation(Vector3(
@@ -952,8 +951,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ClipOval(
                     child: Image(
                       image: const AssetImage("assets/horizon_static.png"),
-                      width: settingsValues["scalingFactor"]!,
-                      height: settingsValues["scalingFactor"]!,
+                      width: scalingFactorHorizon,
+                      height: scalingFactorHorizon,
                     ),
                   )
                 ],
