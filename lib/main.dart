@@ -68,6 +68,8 @@ class MyApp extends StatelessWidget {
         textTheme: const TextTheme(
           bodyMedium: TextStyle(
               color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          bodyLarge: TextStyle(
+              color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
         ),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
@@ -404,29 +406,22 @@ class _MyHomePageState extends State<MyHomePage> {
           // Airspeed Button
           _displayText = [
             "vz ${(varioData.velned.z).toStringAsFixed(1)}",
-            "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
             "alt ${varioData.height_gps.toStringAsFixed(1)}",
-            "airspeed velned"
+            "acceleration to kalman vario",
+            "airspeed velned kalman vario"
           ];
-          double sum = 0;
-          _varioValues.forEach((key, value) {
-            sum += value;
-          });
-          averageVario = sum / _varioValues.length;
-          currentVario = varioData.teSpeedCalculator.getVario();
+          averageVario = varioData.rawClimbSpeedVario.getAverageValue();
+          currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
         } else if (buttonPressed == 2) {
-          _displayText = [
+         _displayText = [
             "vz ${(varioData.velned.z).toStringAsFixed(1)}",
-            "rd ${(varioData.reading / 9.81).toStringAsFixed(1)}",
             "alt ${varioData.height_gps.toStringAsFixed(1)}",
-            "skedot + spedot"
+            "0 acc",
+            "airspeed velned kalman vario"
           ];
-          averageVario =
-              settingsValues["fastVarioFactor"]! * varioData.fastVario;
-          currentVario =
-              settingsValues["potECompensationFactor"]! * varioData.SPEdot +
-                  settingsValues["kinECompensationFactor"]! * varioData.SKEdot -
-                  varioData.windStore.currentWindChange.xy.length;
+          
+          averageVario = varioData.simpleClimbVario.getAverageValue();
+          currentVario = varioData.simpleClimbVario.getFilteredVario();
         } else if (buttonPressed == 3) {
           // Cloud Button
           _displayText = [
@@ -708,7 +703,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ))),
                   Container(
                     child: Text(
-                      '${varioData.batteryVoltage} V',
+                      '\n${varioData.batteryVoltage} V',
                       style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.left,
                     ),
@@ -718,8 +713,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: scalingFactor,
                     alignment: const Alignment(0.9, 0),
                     child: Text(
-                      'AS ${((varioData.tasstate) * 3.6).toStringAsFixed(1)} km/h',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      'AS ${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                      style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.right,
                     ),
                   ),

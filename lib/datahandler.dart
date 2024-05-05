@@ -197,8 +197,14 @@ class VarioData {
       windStore.update(ardupilotWind);
       fastWindStore.update(ardupilotWind);
     }
-    if (blePacketNum == 20){
+    if (blePacketNum == 11){
       teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, velned.z);
+      simpleClimbVario.setNewValue(teSpeedCalculator.getVario());
+      rawClimbSpeedVario.setNewValueAcc(
+            teSpeedCalculator.getVario(),
+            kalmanAccFactor *
+                (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
+      //print("new te ${teSpeedCalculator.getVario()}");
     }
   }
 
@@ -292,6 +298,7 @@ class VarioData {
             byteData.getInt16(2, Endian.little).toDouble() / 500.0,
             0);
         airspeed = byteData.getInt16(4, Endian.little).toDouble() / 500.0;
+        //print(airspeed.toString());
         airspeed = airspeed * airspeed * airspeedQuadraticFactor + airspeed * airspeedLinearFactor + airspeedOffset;
         SPEdot = (byteData.getInt16(6, Endian.little).toDouble() / 50.0) / 9.81;
         SKEdot =
