@@ -70,6 +70,8 @@ class VarioData {
   TECalculator teCalculator = TECalculator();
   TECalculator kalmanVarioTECalculator = TECalculator();
   TESpeedCalculator teSpeedCalculator = TESpeedCalculator();
+  TESpeedCalculator gpsSpeedCalculator = TESpeedCalculator();
+
   Vario rawClimbSpeedVario = Vario(30000);
   double fastVario = 0;
 
@@ -181,9 +183,9 @@ class VarioData {
 
         //windCompVario.setNewValue(teCalculator.getVario());
 
-        simpleClimbVario.setNewValue(reading);
+        //simpleClimbVario.setNewValue(reading);
         calculateGPSSpeedUpdate();
-        gpsVario.setNewValue(gpsSpeed.z * -1.0);
+        //gpsVario.setNewValue(gpsSpeed.z * -1.0);
         teSpeedCalculator.setNewTE(
             varioSpeedFactor * airspeed, gpsSpeed.z * -1);
         rawClimbSpeedVario.setNewValueAcc(
@@ -198,12 +200,15 @@ class VarioData {
       fastWindStore.update(ardupilotWind);
     }
     if (blePacketNum == 11){
-      teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, velned.z);
-      simpleClimbVario.setNewValue(teSpeedCalculator.getVario());
+      teSpeedCalculator.setNewTE(varioSpeedFactor * airspeed, -1 * velned.z);
+      simpleClimbVario.setNewValueAcc(teSpeedCalculator.getVario(), kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
+      //print("new te ${teSpeedCalculator.getVario()} acc ${kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll))} var ${simpleClimbVario.getFilteredVario()}");
       rawClimbSpeedVario.setNewValueAcc(
             teSpeedCalculator.getVario(),
             kalmanAccFactor *
                 (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
+      gpsSpeedCalculator.setNewTE(sqrt(pow(velned.x - ardupilotWind.x, 2) + pow(velned.y - ardupilotWind.y, 2)), -1 * velned.z);
+      gpsVario.setNewValueAcc(gpsSpeedCalculator.getVario(), kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
       //print("new te ${teSpeedCalculator.getVario()}");
     }
   }

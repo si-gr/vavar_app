@@ -164,6 +164,9 @@ class _MyHomePageState extends State<MyHomePage> {
         .setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
     varioData.gpsVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
     varioData.gpsVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
+    
+    varioData.simpleClimbVario.setKalmanQ(settingsValues["rawVarKalQ"]!);
+    varioData.simpleClimbVario.setKalmanAverageQ(settingsValues["rawVarAvgKalQ"]!);
     varioData.airspeedOffset = settingsValues["airspeedOffset"]!;
     varioData.airspeedLinearFactor = settingsValues["airspeedLinearFactor"]!;
     varioData.airspeedQuadraticFactor = settingsValues["airspeedQuadraticFactor"]!;
@@ -407,16 +410,16 @@ class _MyHomePageState extends State<MyHomePage> {
           _displayText = [
             "vz ${(varioData.velned.z).toStringAsFixed(1)}",
             "alt ${varioData.height_gps.toStringAsFixed(1)}",
-            "acceleration to kalman vario",
-            "airspeed velned kalman vario"
+            "speed var${varioData.gpsSpeedCalculator.getVario().toStringAsFixed(1)}",
+            "acc ${varioData.acceleration.z.toStringAsFixed(1)}"
           ];
-          averageVario = varioData.rawClimbSpeedVario.getAverageValue();
-          currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
+          averageVario = varioData.gpsVario.getAverageValue();
+          currentVario = varioData.gpsVario.getFilteredVario();
         } else if (buttonPressed == 2) {
          _displayText = [
             "vz ${(varioData.velned.z).toStringAsFixed(1)}",
             "alt ${varioData.height_gps.toStringAsFixed(1)}",
-            "0 acc",
+            "${varioData.teSpeedCalculator.getVario().toStringAsFixed(1)}",
             "airspeed velned kalman vario"
           ];
           
@@ -430,13 +433,13 @@ class _MyHomePageState extends State<MyHomePage> {
             "rd ${varioData.reading.toString()} vz ${(varioData.velned.z).toStringAsFixed(1)}",
             "fastVario and rawavg"
           ];
-          currentVario = varioData.fastVario;
+          currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
           averageVario = varioData.rawClimbSpeedVario.getAverageValue();
         } else if (buttonPressed == 4) {
           _displayText = [
-            "gx ${(varioData.gpsSpeed.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
-            "gy ${(varioData.gpsSpeed.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
-            "gz ${(varioData.gpsSpeed.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
+            "gx ${(varioData.velned.x).toStringAsFixed(1)} xwx ${(varioData.xcsoarEkf.getWind()[0] * -1).toStringAsFixed(1)}",
+            "gy ${(varioData.velned.y).toStringAsFixed(1)} xwy ${(varioData.xcsoarEkf.getWind()[1] * -1).toStringAsFixed(1)}",
+            "gz ${(varioData.velned.z).toStringAsFixed(1)} xwz ${(varioData.xcsoarEkf.getWind()[2]).toStringAsFixed(1)}",
             "raw climb speed"
           ];
           currentVario = varioData.rawClimbSpeedVario.getFilteredVario();
@@ -447,10 +450,10 @@ class _MyHomePageState extends State<MyHomePage> {
           wind2Rotation = -1 *
               (Vector2(varioData.xcsoarEkf.getWind()[0],
                           varioData.xcsoarEkf.getWind()[1])
-                      .angleToSigned(varioData.gpsSpeed.xy) +
+                      .angleToSigned(varioData.velned.xy) +
                   pi);
           wind1Rotation = -1 *
-              (varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy) +
+              (varioData.ardupilotWind.xy.angleToSigned(varioData.velned.xy) +
                   pi);
 
           //print(
@@ -458,22 +461,21 @@ class _MyHomePageState extends State<MyHomePage> {
         } else if (windButtonPressed == 0) {
           wind1Rotation = -1 *
               (varioData.windStore.windAverage.xy
-                      .angleToSigned(varioData.gpsSpeed.xy) +
+                      .angleToSigned(varioData.velned.xy) +
                   pi);
           wind2Rotation = -1 *
-              ((varioData.windStore.windAverage.xy -
-                          varioData.fastWindStore.windAverage.xy)
-                      .angleToSigned(varioData.gpsSpeed.xy) +
+              ((varioData.windStore.currentWindChange.xy)
+                      .angleToSigned(varioData.velned.xy) +
                   pi);
           windRatio = settingsValues["windChangeIndicatorMult"]! *
-              varioData.fastWindStore.windAverage.length /
+              varioData.windStore.currentWindChange.length /
               varioData.windStore.windAverage.length;
           if (windRatio.isNaN || windRatio.isInfinite) {
             windRatio = 1;
           }
         } else if (windButtonPressed == 2) {
           wind2Rotation =
-              varioData.ardupilotWind.xy.angleToSigned(varioData.gpsSpeed.xy);
+              varioData.ardupilotWind.xy.angleToSigned(varioData.velned.xy);
           wind2Rotation = varioData.ekfGroundSpeed.angleTo(Vector2(1, 0));
         }
       });
@@ -657,7 +659,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   //Transform(transform: Matrix4.rotationZ((oldVario.isFinite ? currentVario : 0.0) / 10 * 0.5 * pi), alignment: FractionalOffset.center, child: Image(image: AssetImage("assets/vario_average1.png"), width: scaling_factor, height: scaling_factor,)),
                   Transform(
                       transform: Matrix4.rotationZ(
-                          (((currentVario.isFinite ? currentVario : 0.0) * 20) /
+                          (((currentVario.isFinite ? max(min(currentVario, 7.0), -7.0) : 0.0) * 20) /
                                   360) *
                               (2 * pi)),
                       alignment: FractionalOffset.center,
@@ -669,7 +671,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       )),
                   Transform(
                       transform: Matrix4.rotationZ(
-                          (((averageVario.isFinite ? averageVario : 0.0) * 20) /
+                          (((averageVario.isFinite ? max(min(averageVario, 7.0), -7.0) : 0.0) * 20) /
                                   360) *
                               (2 * pi)),
                       alignment: FractionalOffset.center,
@@ -713,7 +715,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: scalingFactor,
                     alignment: const Alignment(0.9, 0),
                     child: Text(
-                      'AS ${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                      //'AS ${((varioData.airspeed) * 3.6).toStringAsFixed(1)} km/h',
+                      'AS ${((sqrt(pow(varioData.velned.x - varioData.ardupilotWind.x, 2) + pow(varioData.velned.y - varioData.ardupilotWind.y, 2))) * 3.6).toStringAsFixed(1)} km/h',
                       style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.right,
                     ),

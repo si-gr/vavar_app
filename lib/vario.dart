@@ -2,9 +2,9 @@ import 'package:ble_larus_android/kalman1d.dart';
 
 class Vario {
   Map<int, double> _varioValues = {};
-  int _averageTimeUs = 30000000;
-  Kalman1D kalman1d = Kalman1D(0.01, 0.002);
-  Kalman1D kalman1dAverage = Kalman1D(0.01, 0.0005);
+  int _averageTimeUs = 30000;
+  Kalman1D kalman1d = Kalman1D(0.01, 0.0004);
+  Kalman1D kalman1dAverage = Kalman1D(0.01, 0.00005);
 
   Vario(averageTimeMs) : _averageTimeUs = averageTimeMs * 1000;
 
@@ -21,6 +21,10 @@ class Vario {
   }
 
   void setNewValueAcc(double varioValue, double accelerationZ) {
+    if(varioValue.isNaN) return;
+    if(varioValue.isInfinite) return;
+    if(accelerationZ.isNaN) return;
+    if(accelerationZ.isInfinite) return;
     if (_varioValues.isEmpty) {
       kalman1d.setLastEstimate(varioValue);
       kalman1dAverage.setLastEstimate(varioValue);
