@@ -70,6 +70,8 @@ class VarioData {
   TECalculator teCalculator = TECalculator();
   TECalculator kalmanVarioTECalculator = TECalculator();
   TESpeedCalculator teSpeedCalculator = TESpeedCalculator();
+  TESpeedCalculator gpsSpeedCalculator = TESpeedCalculator();
+
   Vario rawClimbSpeedVario = Vario(30000);
   double fastVario = 0;
 
@@ -204,6 +206,8 @@ class VarioData {
             teSpeedCalculator.getVario(),
             kalmanAccFactor *
                 (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
+      gpsSpeedCalculator.setNewTE(sqrt(pow(velned.x - ardupilotWind.x, 2) + pow(velned.y - ardupilotWind.y, 2)), -1 * velned.z);
+      gpsVario.setNewValueAcc(gpsSpeedCalculator.getVario(), kalmanAccFactor * (acceleration.z * cos(roll) + acceleration.x * sin(roll)));
       //print("new te ${teSpeedCalculator.getVario()}");
     }
   }
